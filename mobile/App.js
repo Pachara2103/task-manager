@@ -15,45 +15,18 @@ import { useNavigationState } from '@react-navigation/native';
 // import dayjs from 'dayjs';
 // import { Ionicons } from '@expo/vector-icons';
 
-
 const Stack = createNativeStackNavigator();
 
 
-
 const BASE_URL = 'http://192.168.43.9:5000'; // เปลี่ยน IP ให้ตรงกับคอม
-//const selectedDate = navigation.getState().routes.find(r => r.name === 'List-Task')?.params?.selectedDate;
-
 
 export default function App() {
-
-
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Calendar">
         <Stack.Screen name="Calendar" component={HomeScreen} />
-        <Stack.Screen
-          name="List-Task"
-          component={ListTaskScreen}
-          // options={({ navigation }) => ({
-          //   title: 'List Task',
-          //   headerRight: () => (
-          //     <TouchableOpacity
-          //       onPress={() => {
-          //         const selectedDate = navigation.getState().routes.find(r => r.name === 'List-Task')?.params?.selectedDate;
-          //         navigation.navigate('Add Task', { selectedDate });
-          //         Alert.alert("addtask");
-          //       }}
-          //       style={{ marginRight: 10 }}
-          //     >
-          //       <Text style={{ fontSize: 24, color: '#007AFF' }}>＋</Text>
-          //     </TouchableOpacity>
-          //   ),
-          // })}
-
-
-        />
+        <Stack.Screen name="List-Task" component={ListTaskScreen}/>
         <Stack.Screen name="Add Task" component={AddTaskScreen} />
-
       </Stack.Navigator>
     </NavigationContainer>
   );

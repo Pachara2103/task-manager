@@ -1,13 +1,38 @@
 // HomeScreen.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Dimensions, StyleSheet, TouchableOpacity } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import dayjs from 'dayjs';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 const { width, height } = Dimensions.get('window');
 const dayWidth = width / 7;
 
 export default function HomeScreen({ navigation }) {
+   const [markedDates, setMarkedDates] = useState({});
+
+    useEffect(() => {
+    const loadMarkedDates = async () => {
+      try {
+        const jsonDates = await AsyncStorage.getItem('taskDates');
+        if (jsonDates) {
+          const datesArray = JSON.parse(jsonDates); // เช่น ["2023-05-21", "2023-05-22"]
+          // สร้าง object สำหรับ markedDates
+          const marks = {};
+          datesArray.forEach(date => {
+            marks[date] = { marked: true, dotColor: 'blue' };
+          });
+          setMarkedDates(marks);
+        }
+      } catch (e) {
+        console.log('Error loading marked dates:', e);
+      }
+    };
+
+    loadMarkedDates();
+  }, []);
+
   const renderDay = ({ date, state }) => {
     const isDisabled = state === 'disabled';
     const isToday = state === 'today';
@@ -16,6 +41,8 @@ export default function HomeScreen({ navigation }) {
       const selectedDate = dayjs(date.dateString).format('YYYY-MM-DD');
       navigation.navigate('List-Task', { selectedDate });
     };
+
+    const isMarked = markedDates[date.dateString]?.marked;
 
     return (
       <TouchableOpacity onPress={handleDayPress} style={[styles.dayContainer, { width: dayWidth }]}>
@@ -29,6 +56,7 @@ export default function HomeScreen({ navigation }) {
           >
             {date.day}
           </Text>
+           {isMarked && <View style={styles.dot} />}
         </View>
       </TouchableOpacity>
     );
@@ -38,6 +66,7 @@ export default function HomeScreen({ navigation }) {
     <View style={{ flex: 1, backgroundColor: 'white' }}>
       <View style={{ width: width, height: height / 2.2, paddingVertical: 10 }}>
         <Calendar
+        //  markedDates={markedDates}
           hideDayNames={false}
           hideArrows={false}
           current={new Date().toISOString().split('T')[0]}
@@ -82,4 +111,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#00adf5',
   },
+  dot: {
+  width: 6,
+  height: 6,
+  borderRadius: 3,
+  backgroundColor: 'blue',
+  marginTop: 2,
+  alignSelf: 'center',
+},
+
 });

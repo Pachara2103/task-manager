@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Modal,
   Button, TouchableWithoutFeedback, Keyboard, Alert
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CommonActions } from '@react-navigation/native';
+
 
 export default function AddTaskScreen({ route, navigation }) {
-  const { selectedDate, onAddTask } = route.params || {};
+  const { selectedDate, onAddTask, taskToEdit, taskIndex } = route.params || {};
   const [taskName, setTaskName] = useState('');
   const [time, setTime] = useState({ hour: '00', min: '00' });
   const [modalVisible, setModalVisible] = useState(false);
@@ -34,11 +37,18 @@ export default function AddTaskScreen({ route, navigation }) {
     setModalVisible(false);
   };
 
-  const cancelTime = () => {
-    setModalVisible(false);
-  };
+  //pull old values from edit task
+  useEffect(() => {
+    if (taskToEdit) {
+      setTaskName(taskToEdit.name);
+      const [h, m] = taskToEdit.time.split(':');
+      setTime({ hour: h, min: m });
+    }
+  }, [taskToEdit]);
 
-  const handleAddTask = () => {
+  const cancelTime = () => { setModalVisible(false); };
+
+  const handleAddTask = async () => {
     if (!taskName.trim()) {
       Alert.alert('กรุณาใส่ชื่อ Task');
       return;
@@ -56,11 +66,57 @@ export default function AddTaskScreen({ route, navigation }) {
       Alert.alert('onAddTask ไม่ถูกส่งมาจากหน้าก่อนหน้า');
     }
 
-    // หลังจากเพิ่ม task และบันทึกเสร็จ
-    navigation.navigate('List-Task', {
-      selectedDate,
-     // refresh: true, // เพิ่ม flag นี้
-    });
+
+    const key = `tasks-${selectedDate}`;
+    try {
+      const saved = await AsyncStorage.getItem(key);
+      let tasks = saved ? JSON.parse(saved) : [];
+
+      // 🔧 ถ้าเป็น edit → ลบ task เดิม
+      if (taskToEdit) {
+        tasks = tasks.filter(
+          (t) => !(t.name === taskToEdit.name && t.time === taskToEdit.time)
+        );
+      }
+
+      // ➕ เพิ่ม task ใหม่
+      tasks.push(newTask);
+
+      // 🕒 เรียงตามเวลา
+      tasks.sort((a, b) => a.time.localeCompare(b.time));
+
+      await AsyncStorage.setItem(key, JSON.stringify(tasks));
+
+      try {
+        const jsonDates = await AsyncStorage.getItem('taskDates');
+        let dates = jsonDates ? JSON.parse(jsonDates) : [];
+
+        if (!dates.includes(selectedDate)) {
+          dates.push(selectedDate);
+          await AsyncStorage.setItem('taskDates', JSON.stringify(dates));
+        }
+      } catch (e) {
+        console.log('Error updating taskDates:', e);
+      }
+      //mark
+
+      // ✅ กลับไปยังหน้ารายการ task
+      navigation.navigate('List-Task', { selectedDate });
+
+
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 1,
+          routes: [
+            { name: 'Calendar' },
+            { name: 'List-Task', params: { selectedDate } },
+          ],
+        })
+
+      );
+    } catch (e) {
+      console.log("Error saving task:", e);
+    }
 
   };
 
