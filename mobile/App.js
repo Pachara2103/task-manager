@@ -34,21 +34,21 @@ export default function App() {
         <Stack.Screen
           name="List-Task"
           component={ListTaskScreen}
-          options={({ navigation }) => ({
-            title: 'List Task',
-            headerRight: () => (
-              <TouchableOpacity
-                onPress={() => {
-                  const selectedDate = navigation.getState().routes.find(r => r.name === 'List-Task')?.params?.selectedDate;
-                  navigation.navigate('Add Task', { selectedDate });
-                  Alert.alert("addtask");
-                }}
-                style={{ marginRight: 10 }}
-              >
-                <Text style={{ fontSize: 24, color: '#007AFF' }}>＋</Text>
-              </TouchableOpacity>
-            ),
-          })}
+          // options={({ navigation }) => ({
+          //   title: 'List Task',
+          //   headerRight: () => (
+          //     <TouchableOpacity
+          //       onPress={() => {
+          //         const selectedDate = navigation.getState().routes.find(r => r.name === 'List-Task')?.params?.selectedDate;
+          //         navigation.navigate('Add Task', { selectedDate });
+          //         Alert.alert("addtask");
+          //       }}
+          //       style={{ marginRight: 10 }}
+          //     >
+          //       <Text style={{ fontSize: 24, color: '#007AFF' }}>＋</Text>
+          //     </TouchableOpacity>
+          //   ),
+          // })}
 
 
         />

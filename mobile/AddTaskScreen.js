@@ -1,58 +1,88 @@
 import React, { useState } from 'react';
-import { 
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, 
-  Button, TouchableWithoutFeedback, Keyboard 
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Modal,
+  Button, TouchableWithoutFeedback, Keyboard, Alert
 } from 'react-native';
 
 export default function AddTaskScreen({ route, navigation }) {
-  const { selectedDate } = route.params;
+  const { selectedDate, onAddTask } = route.params || {};
   const [taskName, setTaskName] = useState('');
   const [time, setTime] = useState({ hour: '00', min: '00' });
   const [modalVisible, setModalVisible] = useState(false);
   const [tempHour, setTempHour] = useState('00');
   const [tempMin, setTempMin] = useState('00');
 
-  // ฟังก์ชันเปิด modal เลือกเวลา
   const openTimePicker = () => {
     setTempHour(time.hour);
     setTempMin(time.min);
     setModalVisible(true);
   };
 
-  // ฟังก์ชันกด OK เพื่อยืนยันเวลา
   const confirmTime = () => {
-    setTime({ hour: tempHour, min: tempMin });
+    const h = parseInt(tempHour, 10);
+    const m = parseInt(tempMin, 10);
+
+    if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) {
+      Alert.alert('Invalid Time', 'Time is incorrect. Please enter again.');
+      return; // modal ค้างไว้ไม่ปิด ให้แก้ไขใหม่
+    }
+
+    setTime({
+      hour: h.toString().padStart(2, '0'),
+      min: m.toString().padStart(2, '0'),
+    });
     setModalVisible(false);
   };
 
-  // กดนอก modal ให้ปิด modal แล้วเวลาไม่เปลี่ยน (default)
   const cancelTime = () => {
     setModalVisible(false);
+  };
+
+  const handleAddTask = () => {
+    if (!taskName.trim()) {
+      Alert.alert('กรุณาใส่ชื่อ Task');
+      return;
+    }
+
+    const newTask = {
+      name: taskName,
+      time: `${time.hour}:${time.min}`,
+      date: selectedDate
+    };
+
+    if (typeof onAddTask === 'function') {
+      onAddTask(newTask);
+    } else {
+      Alert.alert('onAddTask ไม่ถูกส่งมาจากหน้าก่อนหน้า');
+    }
+
+    // หลังจากเพิ่ม task และบันทึกเสร็จ
+    navigation.navigate('List-Task', {
+      selectedDate,
+     // refresh: true, // เพิ่ม flag นี้
+    });
+
   };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-
-        {/* แสดงวันที่ที่ส่งมา */}
         <Text style={styles.dateText}>Date: {selectedDate}</Text>
 
-        {/* กรอกชื่อ Task */}
         <Text style={styles.label}>Task:</Text>
-        <TextInput 
-          style={styles.input} 
-          placeholder="ชื่องาน" 
-          value={taskName} 
-          onChangeText={setTaskName} 
+        <TextInput
+          style={styles.input}
+          placeholder="ชื่องาน"
+          value={taskName}
+          onChangeText={setTaskName}
         />
 
-        {/* กรอบเลือกเวลา */}
         <Text style={styles.label}>Time:</Text>
         <TouchableOpacity style={styles.timeBox} onPress={openTimePicker}>
           <Text style={styles.timeText}>{time.hour}:{time.min}</Text>
         </TouchableOpacity>
 
-        {/* Modal เลือกเวลา */}
+        {/* Modal */}
         <Modal
           visible={modalVisible}
           transparent={true}
@@ -62,6 +92,7 @@ export default function AddTaskScreen({ route, navigation }) {
           <TouchableWithoutFeedback onPress={cancelTime}>
             <View style={styles.modalOverlay}>
               <TouchableWithoutFeedback>
+
                 <View style={styles.modalContent}>
                   <Text style={styles.modalTitle}>เลือกเวลา</Text>
 
@@ -73,15 +104,18 @@ export default function AddTaskScreen({ route, navigation }) {
                         keyboardType="number-pad"
                         maxLength={2}
                         value={tempHour}
+                        onFocus={() => {
+                          if (tempHour === '00') setTempHour('');
+                        }}
                         onChangeText={text => {
+                          // ตัดเฉพาะเลข
                           let val = text.replace(/[^0-9]/g, '');
-                          if (val === '') val = '00';
-                          else if (parseInt(val) > 23) val = '23';
-                          else if (parseInt(val) < 0) val = '00';
-                          setTempHour(val.padStart(2, '0'));
+                          // ไม่เติม 0 ให้อัตโนมัติ ให้เก็บตาม input เลย
+                          setTempHour(val);
                         }}
                       />
                     </View>
+
                     <View style={styles.pickerColumn}>
                       <Text>นาที</Text>
                       <TextInput
@@ -89,16 +123,17 @@ export default function AddTaskScreen({ route, navigation }) {
                         keyboardType="number-pad"
                         maxLength={2}
                         value={tempMin}
+                        onFocus={() => {
+                          if (tempMin === '00') setTempMin('');
+                        }}
                         onChangeText={text => {
                           let val = text.replace(/[^0-9]/g, '');
-                          if (val === '') val = '00';
-                          else if (parseInt(val) > 59) val = '59';
-                          else if (parseInt(val) < 0) val = '00';
-                          setTempMin(val.padStart(2, '0'));
+                          setTempMin(val);
                         }}
                       />
                     </View>
                   </View>
+
 
                   <View style={{ marginTop: 20 }}>
                     <Button title="OK" onPress={confirmTime} />
@@ -109,6 +144,12 @@ export default function AddTaskScreen({ route, navigation }) {
           </TouchableWithoutFeedback>
         </Modal>
 
+        {/* ปุ่ม Add ตรงกลางล่าง */}
+        <View style={styles.addButtonContainer}>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddTask}>
+            <Text style={styles.addButtonText}>Add</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -183,5 +224,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     width: '100%',
+  },
+  addButtonContainer: {
+    position: 'absolute',
+    bottom: 30,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  addButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 30,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
