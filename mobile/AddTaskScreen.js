@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Modal,
-  Button, TouchableWithoutFeedback, Keyboard, Alert
+  Button, TouchableWithoutFeedback, Keyboard, Alert, DeviceEventEmitter
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CommonActions } from '@react-navigation/native';
 
 
 export default function AddTaskScreen({ route, navigation }) {
-  const { selectedDate, onAddTask, taskToEdit, taskIndex } = route.params || {};
+  const { selectedDate, isLiked, taskToEdit, taskIndex, isShowAllList, isShowFav } = route.params || {};
   const [taskName, setTaskName] = useState('');
   const [time, setTime] = useState({ hour: '00', min: '00' });
   const [modalVisible, setModalVisible] = useState(false);
@@ -53,40 +53,111 @@ export default function AddTaskScreen({ route, navigation }) {
       Alert.alert('กรุณาใส่ชื่อ Task');
       return;
     }
-
     const newTask = {
       name: taskName,
       time: `${time.hour}:${time.min}`,
       date: selectedDate
     };
 
-    if (typeof onAddTask === 'function') {
-      onAddTask(newTask);
-    } else {
-      Alert.alert('onAddTask ไม่ถูกส่งมาจากหน้าก่อนหน้า');
-    }
-
-
     const key = `tasks-${selectedDate}`;
+
     try {
       const saved = await AsyncStorage.getItem(key);
       let tasks = saved ? JSON.parse(saved) : [];
 
-      // 🔧 ถ้าเป็น edit → ลบ task เดิม
+    
+
+      // ถ้าเป็น edit → ลบ task เดิม
       if (taskToEdit) {
         tasks = tasks.filter(
           (t) => !(t.name === taskToEdit.name && t.time === taskToEdit.time)
         );
       }
+      const isTimeConflict = tasks.some((t) => t.time === newTask.time);
+      if (isTimeConflict) {
+        Alert.alert('This time is busy');
+        return;
+      }
 
-      // ➕ เพิ่ม task ใหม่
+
       tasks.push(newTask);
-
-      // 🕒 เรียงตามเวลา
       tasks.sort((a, b) => a.time.localeCompare(b.time));
-
       await AsyncStorage.setItem(key, JSON.stringify(tasks));
 
+      const savedAll = await AsyncStorage.getItem('allTasks');
+      let allTasks = savedAll ? JSON.parse(savedAll) : [];
+
+      if (taskToEdit) {
+        allTasks = allTasks.filter(
+          (t) =>
+            !(
+              t.name === taskToEdit.name &&
+              t.time === taskToEdit.time &&
+              t.date === taskToEdit.date
+            )
+        );
+      }
+
+      allTasks.push(newTask);
+      allTasks.sort((a, b) => {
+        if (a.date === b.date) {
+          return a.time.localeCompare(b.time);
+        }
+        return a.date.localeCompare(b.date);
+      });
+      await AsyncStorage.setItem('allTasks', JSON.stringify(allTasks));
+
+      ////// for allFavTask
+      if (isLiked) {
+        try {
+          const favJson = await AsyncStorage.getItem('allFavTask');
+          let favList = favJson ? JSON.parse(favJson) : [];
+
+          if (taskToEdit) {
+            favList = favList.filter(
+              (t) =>
+                !(
+                  t.name === taskToEdit.name &&
+                  t.time === taskToEdit.time &&
+                  t.date === taskToEdit.date
+                )
+            );
+          }
+
+          favList.push(newTask);
+          favList.sort((a, b) => {
+            if (a.date === b.date) {
+              return a.time.localeCompare(b.time);
+            }
+            return a.date.localeCompare(b.date);
+          });
+
+          await AsyncStorage.setItem('allFavTask', JSON.stringify(favList));
+
+        } catch (e) {
+          console.log('Error updating allFavTask:', e);
+        }
+      }
+
+      // Update Date Color Mapping
+      try {
+        const jsonMap = await AsyncStorage.getItem('taskDatesMap');
+        const dateColorMap = jsonMap ? JSON.parse(jsonMap) : {};
+        if (!dateColorMap[selectedDate]) {
+          const colors = ['pink', 'orange', 'red', 'green', 'purple'];
+          const usedColors = Object.values(dateColorMap);
+          const availableColors = colors.filter(c => !usedColors.includes(c));
+          const colorPool = availableColors.length > 0 ? availableColors : colors;
+          const randomColor = colorPool[Math.floor(Math.random() * colorPool.length)];
+
+          dateColorMap[selectedDate] = randomColor;
+          await AsyncStorage.setItem('taskDatesMap', JSON.stringify(dateColorMap));
+        }
+      } catch (e) {
+        console.log('Error assigning color to date:', e);
+      }
+
+      // Update Task Dates
       try {
         const jsonDates = await AsyncStorage.getItem('taskDates');
         let dates = jsonDates ? JSON.parse(jsonDates) : [];
@@ -98,11 +169,9 @@ export default function AddTaskScreen({ route, navigation }) {
       } catch (e) {
         console.log('Error updating taskDates:', e);
       }
-      //mark
 
-      // ✅ กลับไปยังหน้ารายการ task
+      // Navigate back to the task list
       navigation.navigate('List-Task', { selectedDate });
-
 
       navigation.dispatch(
         CommonActions.reset({
@@ -112,13 +181,21 @@ export default function AddTaskScreen({ route, navigation }) {
             { name: 'List-Task', params: { selectedDate } },
           ],
         })
-
       );
     } catch (e) {
       console.log("Error saving task:", e);
     }
 
+    // if (isShowAllList) {
+    //   DeviceEventEmitter.emit('reloadAllTasks');
+    // }
+    // if (isShowFav) {
+    //   DeviceEventEmitter.emit('reloadAllFavTasks');
+    // }
   };
+
+
+
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>

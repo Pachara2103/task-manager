@@ -1,28 +1,101 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TouchableWithoutFeedback,Dimensions} from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TouchableWithoutFeedback, Dimensions, DeviceEventEmitter, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
+
 
 
 function formatDate(dateString) {
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const dateObj = new Date(dateString);
   const day = dateObj.getDate();
   const month = months[dateObj.getMonth()];
   const year = dateObj.getFullYear();
-
   return `${day} ${month} ${year}`;
 }
+
 const { width, height } = Dimensions.get('window');
 
 
 export default function ListTaskScreen({ route, navigation }) {
-  const { selectedDate } = route.params;
+  const { selectedDate, isShowFav, isShowAllList } = route.params;
   const [tasks, setTasks] = useState([]);
 
   const [selectedTaskIndex, setSelectedTaskIndex] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [isLiked, setIsLiked] = useState(false); // false = noheart
 
+  const toggleHeart = async () => {
+    const newLiked = !isLiked;
+    setIsLiked(newLiked);
+
+    if (newLiked) {
+      try {
+        // โหลด tasks ของวันนั้น
+        const tasksJson = await AsyncStorage.getItem(`tasks-${selectedDate}`);
+        const tasks = tasksJson ? JSON.parse(tasksJson) : [];
+
+        if (tasks.length > 0) {
+          const favJson = await AsyncStorage.getItem('allFavTask');
+          let favList = favJson ? JSON.parse(favJson) : [];
+
+          // แปลง tasks ให้เป็น flat array ที่เก็บ name, time, date
+          const tasksWithDate = tasks.map(t => ({
+            name: t.name,
+            time: t.time,
+            date: selectedDate
+          }));
+
+          // กรองของเดิมที่ซ้ำวันเดียวกันออก
+          favList = favList.filter(t => t.date !== selectedDate);
+
+          // เพิ่ม tasks ของวันใหม่เข้าไป
+          favList = favList.concat(tasksWithDate);
+
+          await AsyncStorage.setItem('allFavTask', JSON.stringify(favList));
+        }
+      } catch (e) {
+        console.log('Error saving to allFavTask:', e);
+      }
+
+      if (isShowFav) {
+        DeviceEventEmitter.emit('reloadAllFavTasks');
+      }
+    } else {
+      // ถ้า unlike ให้ลบ task ทั้งหมดของวันนั้นออกจาก allFavTask
+      try {
+        const favJson = await AsyncStorage.getItem('allFavTask');
+        let favList = favJson ? JSON.parse(favJson) : [];
+
+        favList = favList.filter(t => t.date !== selectedDate);
+
+        await AsyncStorage.setItem('allFavTask', JSON.stringify(favList));
+      } catch (e) {
+        console.log('Error removing from allFavTask:', e);
+      }
+
+      if (isShowFav) {
+        DeviceEventEmitter.emit('reloadAllFavTasks');
+      }
+    }
+  };
+
+  useEffect(() => {
+    const loadLikeStatus = async () => {
+      try {
+        const favJson = await AsyncStorage.getItem('allFavTask');
+        const favList = favJson ? JSON.parse(favJson) : [];
+
+        // ตรวจสอบว่ามี selectedDate ใน allFavTask หรือไม่
+        const isFav = favList.some(item => item.date === selectedDate);
+        setIsLiked(isFav);
+      } catch (e) {
+        console.log('Error loading like status:', e);
+      }
+    };
+
+    loadLikeStatus();
+  }, [selectedDate]);
 
 
   const handleAddTask = (newTask) => {
@@ -32,7 +105,10 @@ export default function ListTaskScreen({ route, navigation }) {
   const openAddTaskScreen = () => {
     navigation.navigate('Add Task', {
       selectedDate: selectedDate,
-      onAddTask: handleAddTask,
+      isLiked: isLiked,
+      isShowAllList: isShowAllList,
+      isShowFav: isShowFav,
+      //   onAddTask: handleAddTask,
     });
   };
 
@@ -59,28 +135,6 @@ export default function ListTaskScreen({ route, navigation }) {
     loadTasks();
   }, [selectedDate]);
 
-  // useEffect(() => {
-  //   const saveAndSortTask = async () => {
-  //     if (route.params?.newTask) {
-  //       try {
-  //         const key = `tasks-${selectedDate}`;
-  //         const saved = await AsyncStorage.getItem(key);
-  //         const parsed = saved ? JSON.parse(saved) : [];
-
-  //         const updatedTasks = [...parsed, route.params.newTask];
-
-  //         const sortedTasks = sortTasksByTime(updatedTasks);
-  //         setTasks(sortedTasks);
-
-  //         await AsyncStorage.setItem(key, JSON.stringify(sortedTasks));
-  //       } catch (e) {
-  //         console.log("Error saving new task:", e);
-  //       }
-  //     }
-  //   };
-
-  //   saveAndSortTask();
-  // }, [route.params?.newTask]);
   useEffect(() => {
     if (route.params?.newTask) {
       const newTasks = [...tasks, route.params.newTask];
@@ -94,9 +148,6 @@ export default function ListTaskScreen({ route, navigation }) {
     }
   }, [route.params?.newTask]);
 
-
-
-
   // บันทึกทุกครั้งที่ tasks เปลี่ยน
   useEffect(() => {
     AsyncStorage.setItem(`tasks-${selectedDate}`, JSON.stringify(tasks))
@@ -109,81 +160,156 @@ export default function ListTaskScreen({ route, navigation }) {
       setTaskName(route.params.taskToEdit.name);
       setTempHour(route.params.taskToEdit.time.split(':')[0]);
       setTempMin(route.params.taskToEdit.time.split(':')[1]);
-
     }
   }, []);
 
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{formatDate(selectedDate)}</Text>
+      <View style={{
+        position: 'absolute',
+        top: 0,
+        width: width,
+        height: 70,
+        backgroundColor: 'orange',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <View style={styles.ImageContainer}>
+          <Text style={[styles.title, { marginTop: 10, marginRight: 10, }]}>{formatDate(selectedDate)}</Text>
+        </View>
 
-      <FlatList
-        data={tasks}
-        keyExtractor={(item, index) => index.toString()}
-        // renderItem={({ item }) => (
-        //   <Text style={styles.taskItem}>{item.time} : {item.name}</Text>
-        // )}
-        renderItem={({ item, index }) => (
-          <TouchableOpacity onPress={() => {
-            setSelectedTaskIndex(index);
-            setShowModal(true);
-          }}>
-            <Text style={styles.taskItem}>{item.time} : {item.name}</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity onPress={toggleHeart} >
+          <Image
+            source={
+              isLiked
+                ? require('./Image/fullheart.png')
+                : require('./Image/noheart.png')
+            }
+            style={{ width: 40, height: 40, marginBottom: 5 }}
+          />
+        </TouchableOpacity>
 
-      />
+      </View>
+
+      <View style={{ position:'absolute',top:150,flexDirection: 'column', width: width, height: height / 2, backgroundColor: 'pink' }}>
+
+        <FlatList
+          data={tasks}
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={({ item, index }) => (
+            <TouchableOpacity onPress={() => {
+              setSelectedTaskIndex(index);
+              setShowModal(true);
+            }}>
+              <Text style={styles.taskItem}>{item.time} : {item.name}</Text>
+            </TouchableOpacity>
+          )}
+
+        />
+      </View>
 
       {showModal && selectedTaskIndex !== null && (
         <TouchableWithoutFeedback onPress={() => setShowModal(false)}>
 
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback>
-             <View style={[styles.modalBox, { marginBottom:50}]}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: 'orange' }]}
-                onPress={() => {
-                  setShowModal(false);
-                  const task = tasks[selectedTaskIndex];
-                  navigation.navigate('Add Task', {
-                    selectedDate,
-                    taskToEdit: task,
-                    taskIndex: selectedTaskIndex,
-                    onAddTask: handleAddTask,
-                  });
-                }}
-              >
-                <Text style={styles.modalButtonText}>Edit</Text>
-              </TouchableOpacity>
+              <View style={[styles.modalBox, { marginBottom: 50 }]}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: 'orange' }]}
+                  onPress={() => {
+                    setShowModal(false);
+                    const task = tasks[selectedTaskIndex];
+                    navigation.navigate('Add Task', {
+                      selectedDate,
+                      taskToEdit: task,
+                      taskIndex: selectedTaskIndex,
+                      isLiked: isLiked,
+                      isShowAllList: isShowAllList,
+                      isShowFav: isShowFav,
+                      // onAddTask: handleAddTask,
+                    });
+                  }}
+                >
+                  <Text style={styles.modalButtonText}>Edit</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: 'red', marginTop: 10 }]}
-                onPress={async () => {
-                  const newTasks = tasks.filter((_, i) => i !== selectedTaskIndex);
-                  setTasks(newTasks);
-                  await AsyncStorage.setItem(`tasks-${selectedDate}`, JSON.stringify(newTasks));
-                  setShowModal(false);
-                }}
-              >
-                <Text style={styles.modalButtonText}>Delete</Text>
-              </TouchableOpacity>
-          </View>
-        </TouchableWithoutFeedback>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: 'red', marginTop: 10 }]}
+                  onPress={async () => {
+                    const newTasks = tasks.filter((_, i) => i !== selectedTaskIndex);
+                    setTasks(newTasks);
+                    await AsyncStorage.setItem(`tasks-${selectedDate}`, JSON.stringify(newTasks));
+
+                    // ลบ task ใน allTasks
+                    const savedAll = await AsyncStorage.getItem('allTasks');
+                    let allTasks = savedAll ? JSON.parse(savedAll) : [];
+
+                    // task ที่จะลบ (อิงจาก selectedTaskIndex)
+                    const taskToDelete = tasks[selectedTaskIndex];
+
+                    // กรอง allTasks ให้ลบ task นี้ออก
+                    allTasks = allTasks.filter(t =>
+                      !(t.name === taskToDelete.name &&
+                        t.time === taskToDelete.time &&
+                        t.date === selectedDate)
+                    );
+
+                    await AsyncStorage.setItem('allTasks', JSON.stringify(allTasks));
+
+                    const savedFav = await AsyncStorage.getItem('allFavTask');
+                    let favList = savedFav ? JSON.parse(savedFav) : [];
+
+                    favList = favList.filter(t =>
+                      !(t.name === taskToDelete.name &&
+                        t.time === taskToDelete.time &&
+                        t.date === selectedDate)
+                    );
+
+                    await AsyncStorage.setItem('allFavTask', JSON.stringify(favList));
+
+
+
+                    if (newTasks.length === 0) {
+                      // ถ้าไม่มี task แล้ว ลบจาก taskDatesMap
+                      const jsonMap = await AsyncStorage.getItem('taskDatesMap');
+                      const dateColorMap = jsonMap ? JSON.parse(jsonMap) : {};
+                      delete dateColorMap[selectedDate];
+                      await AsyncStorage.setItem('taskDatesMap', JSON.stringify(dateColorMap));
+                    }
+
+                    setShowModal(false);
+                    console.log(isShowAllList);
+
+                    if (isShowAllList) {
+                      DeviceEventEmitter.emit('reloadAllTasks');
+                    }
+                    else if (isShowFav) {
+                      DeviceEventEmitter.emit('reloadAllFavTasks');
+                    }
+
+                  }}
+                >
+                  <Text style={styles.modalButtonText}>Delete</Text>
+                </TouchableOpacity>
+
+              </View>
+            </TouchableWithoutFeedback>
           </View>
 
         </TouchableWithoutFeedback >
 
       )
-}
+      }
 
 
-<TouchableOpacity
-  style={[showModal ? styles.disabledButton : styles.addButton]}
-  onPress={openAddTaskScreen}
-  disabled={showModal}>
-  <Text style={styles.addButtonText}>Add Task</Text>
-</TouchableOpacity>
+      <TouchableOpacity
+        style={[showModal ? styles.disabledButton : styles.addButton, {position:'absolute',bottom:15}]}
+        onPress={openAddTaskScreen}
+        disabled={showModal}>
+        <Text style={styles.addButtonText}>Add Task</Text>
+      </TouchableOpacity>
     </View >
   );
 }
@@ -261,6 +387,10 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  ImageContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
 });
