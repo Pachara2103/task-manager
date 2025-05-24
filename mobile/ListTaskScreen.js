@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TouchableWithoutFeedback, Dimensions, DeviceEventEmitter, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
+import { AppContext } from './AppContext';
+import { useIsFocused } from '@react-navigation/native';
+
+
 
 
 
@@ -18,12 +22,38 @@ const { width, height } = Dimensions.get('window');
 
 
 export default function ListTaskScreen({ route, navigation }) {
-  const { selectedDate, isShowFav, isShowAllList } = route.params;
-  const [tasks, setTasks] = useState([]);
 
-  const [selectedTaskIndex, setSelectedTaskIndex] = useState(null);
+  // useEffect(() => {
+  //   const subscription = DeviceEventEmitter.addListener('toListTaskScreen', ListTaskScreen);
+  //   return () => {
+  //     subscription.remove(); // cleanup เวลา component ถูก destroy
+  //   };
+  // }, []);
+  const isFocused = useIsFocused(); //useIsFocused ช่วยให้โหลดใหม่เมื่อกลับมาจากหน้าอื่น
+
+
+  const { ShowFav,
+    handleShowAllTasks,
+    isShowAllList,
+    isShowFav,
+    isLiked,
+    markedDates,
+    isShowListTask,
+    setShowListTask,
+    setIsLiked,
+
+    selectedDate,
+    setDate,
+    selectedTaskIndex,
+    setSelectedTaskIndex,
+
+    tasks,
+    setTasks,
+
+  } = useContext(AppContext);
+
+
   const [showModal, setShowModal] = useState(false);
-  const [isLiked, setIsLiked] = useState(false); // false = noheart
 
   const toggleHeart = async () => {
     const newLiked = !isLiked;
@@ -49,7 +79,6 @@ export default function ListTaskScreen({ route, navigation }) {
           // กรองของเดิมที่ซ้ำวันเดียวกันออก
           favList = favList.filter(t => t.date !== selectedDate);
 
-          // เพิ่ม tasks ของวันใหม่เข้าไป
           favList = favList.concat(tasksWithDate);
 
           await AsyncStorage.setItem('allFavTask', JSON.stringify(favList));
@@ -103,11 +132,11 @@ export default function ListTaskScreen({ route, navigation }) {
   };
 
   const openAddTaskScreen = () => {
-    navigation.navigate('Add Task', {
-      selectedDate: selectedDate,
-      isLiked: isLiked,
-      isShowAllList: isShowAllList,
-      isShowFav: isShowFav,
+    navigation.navigate('Add', {
+      // selectedDate: selectedDate,
+      // isLiked: isLiked,
+      // isShowAllList: isShowAllList,
+      // isShowFav: isShowFav,
       //   onAddTask: handleAddTask,
     });
   };
@@ -120,20 +149,30 @@ export default function ListTaskScreen({ route, navigation }) {
     });
   };
 
-  useEffect(() => {
-    const loadTasks = async () => {
-      try {
-        const saved = await AsyncStorage.getItem(`tasks-${selectedDate}`);
-        if (saved) {
-          const parsedTasks = JSON.parse(saved);
-          setTasks(sortTasksByTime(parsedTasks));
-        }
-      } catch (e) {
-        console.log("Error loading tasks:", e);
+  const loadTasks = async () => {
+    try {
+      const saved = await AsyncStorage.getItem(`tasks-${selectedDate}`);
+      if (saved) {
+        const parsedTasks = JSON.parse(saved);
+        setTasks(sortTasksByTime(parsedTasks));
       }
-    };
-    loadTasks();
-  }, [selectedDate]);
+      console.log("loading tasksssssssssss");
+    } catch (e) {
+      console.log("Error loading tasks:", e);
+    }
+  };
+
+  // โหลดซ้ำเมื่อกลับมาหน้านี้ (Focused)
+  useEffect(() => {
+    if (isFocused) {
+      loadTasks();
+    }
+  }, [isFocused]);
+
+  // โหลดเมื่อ selectedDate เปลี่ยน
+  // useEffect(() => {
+  //   loadTasks();
+  // }, [selectedDate]);
 
   useEffect(() => {
     if (route.params?.newTask) {
@@ -193,7 +232,7 @@ export default function ListTaskScreen({ route, navigation }) {
 
       </View>
 
-      <View style={{ position:'absolute',top:150,flexDirection: 'column', width: width, height: height / 2, backgroundColor: 'pink' }}>
+      <View style={{ position: 'absolute', top: 150, flexDirection: 'column', width: width, height: height / 2, backgroundColor: 'pink' }}>
 
         <FlatList
           data={tasks}
@@ -221,13 +260,12 @@ export default function ListTaskScreen({ route, navigation }) {
                   onPress={() => {
                     setShowModal(false);
                     const task = tasks[selectedTaskIndex];
-                    navigation.navigate('Add Task', {
-                      selectedDate,
+                    navigation.navigate('Add', {
                       taskToEdit: task,
-                      taskIndex: selectedTaskIndex,
-                      isLiked: isLiked,
-                      isShowAllList: isShowAllList,
-                      isShowFav: isShowFav,
+                      // taskIndex: selectedTaskIndex,
+                      // isLiked: isLiked,
+                      // isShowAllList: isShowAllList,
+                      // isShowFav: isShowFav,
                       // onAddTask: handleAddTask,
                     });
                   }}
@@ -280,7 +318,7 @@ export default function ListTaskScreen({ route, navigation }) {
                     }
 
                     setShowModal(false);
-                    console.log(isShowAllList);
+                    // console.log(isShowAllList);
 
                     if (isShowAllList) {
                       DeviceEventEmitter.emit('reloadAllTasks');
@@ -305,7 +343,7 @@ export default function ListTaskScreen({ route, navigation }) {
 
 
       <TouchableOpacity
-        style={[showModal ? styles.disabledButton : styles.addButton, {position:'absolute',bottom:15}]}
+        style={[showModal ? styles.disabledButton : styles.addButton, { position: 'absolute', bottom: 15 }]}
         onPress={openAddTaskScreen}
         disabled={showModal}>
         <Text style={styles.addButtonText}>Add Task</Text>

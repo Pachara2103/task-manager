@@ -1,14 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Modal,
   Button, TouchableWithoutFeedback, Keyboard, Alert, DeviceEventEmitter
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CommonActions } from '@react-navigation/native';
+import { AppContext } from './AppContext';
+
+
 
 
 export default function AddTaskScreen({ route, navigation }) {
-  const { selectedDate, isLiked, taskToEdit, taskIndex, isShowAllList, isShowFav } = route.params || {};
+
+
+  const { ShowFav,
+    handleShowAllTasks,
+    isShowAllList,
+    isShowFav,
+    markedDates,
+    isShowListTask,
+    isLiked,
+    setShowListTask,
+
+    selectedDate,
+    setDate,
+    selectedTaskIndex,
+    setSelectedTaskIndex,
+
+    tasks,
+    setTasks,
+
+  } = useContext(AppContext);
+
+  const { taskToEdit } = route.params || {};
   const [taskName, setTaskName] = useState('');
   const [time, setTime] = useState({ hour: '00', min: '00' });
   const [modalVisible, setModalVisible] = useState(false);
@@ -37,12 +61,16 @@ export default function AddTaskScreen({ route, navigation }) {
     setModalVisible(false);
   };
 
-  //pull old values from edit task
+  //ถ้ามี taskToEdit จะเอาค่าเดิมมาใส่
   useEffect(() => {
     if (taskToEdit) {
       setTaskName(taskToEdit.name);
       const [h, m] = taskToEdit.time.split(':');
       setTime({ hour: h, min: m });
+    }
+    else {
+      setTaskName('');
+      setTime({ hour: '00', min: '00' });
     }
   }, [taskToEdit]);
 
@@ -64,8 +92,6 @@ export default function AddTaskScreen({ route, navigation }) {
     try {
       const saved = await AsyncStorage.getItem(key);
       let tasks = saved ? JSON.parse(saved) : [];
-
-    
 
       // ถ้าเป็น edit → ลบ task เดิม
       if (taskToEdit) {
@@ -153,6 +179,8 @@ export default function AddTaskScreen({ route, navigation }) {
           dateColorMap[selectedDate] = randomColor;
           await AsyncStorage.setItem('taskDatesMap', JSON.stringify(dateColorMap));
         }
+        console.log('taskdatemap= ', dateColorMap);//{"2025-05-22": "red", "2025-05-23": "orange"}
+
       } catch (e) {
         console.log('Error assigning color to date:', e);
       }
@@ -166,22 +194,18 @@ export default function AddTaskScreen({ route, navigation }) {
           dates.push(selectedDate);
           await AsyncStorage.setItem('taskDates', JSON.stringify(dates));
         }
+        console.log('taskDates:', dates);
       } catch (e) {
-        console.log('Error updating taskDates:', e);
+        console.log('Error updating taskDates:', e); //["2025-05-21", "2025-05-22", "2025-05-23"]
       }
 
-      // Navigate back to the task list
-      navigation.navigate('List-Task', { selectedDate });
 
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 1,
-          routes: [
-            { name: 'Calendar' },
-            { name: 'List-Task', params: { selectedDate } },
-          ],
-        })
-      );
+
+
+      // Navigate back to the task list
+      navigation.navigate('ListTask', {});
+
+
     } catch (e) {
       console.log("Error saving task:", e);
     }
@@ -192,8 +216,9 @@ export default function AddTaskScreen({ route, navigation }) {
     // if (isShowFav) {
     //   DeviceEventEmitter.emit('reloadAllFavTasks');
     // }
-  };
+    // console.log('all Task after add= ', allTasks);
 
+  };
 
 
 
