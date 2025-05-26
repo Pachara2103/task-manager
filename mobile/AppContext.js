@@ -1,29 +1,22 @@
 import { createContext } from 'react';
 
 export const AppContext = createContext({
-  ShowFav: () => {},
-  handleShowAllTasks: () => {},
-  markedDates: {},
-  setMarkedDates: () => {},
 
-  isShowFav: false,
-  isShowAllList: false,
-  isShowListTask:false,
-  isShowHome:false,
-  isShowAdd:false,
-  isLiked:false,
+  allTasks: [], setAllTasks: () => { },
+  allFavTasks: [],setAllFavTasks: () => { },
+  tasks: [], setTasks: () => { },
 
-  setIsLiked: () => {},
-  setShowFav: () => {},
-  setShowListTask: () => {},
+  markedDates: {}, setMarkedDates: () => { },
+  selectedDate: [], setSelectedDate: () => { },
+  selectedTaskIndex: [], setSelectedTaskIndex: () => { },
 
-  allTasks:[],
-  allFavTasks:[],
-  tasks:[],
-  setTasks: () => {},
+  isShowFav: false,  setShowFav: () => { },
+  isShowAllList: false, setShowAllList: () => { },
+  isLiked: false, setIsLiked: () => { },
+  isShowFavTask: false, setShowFavTask: () => { },
 
-  selectedDate:[],
-  setDate: () => {},
-  selectedTaskIndex:[],
-  setSelectedTaskIndex:() => {},
+  isFromCalendar: false, setFromCalendar: () => { },
+
+  likedByDate:[], setLikedByDate:() => { },
+
 });
