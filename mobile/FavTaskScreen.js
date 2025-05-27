@@ -82,10 +82,12 @@ export default function FavTaskScreen({ visible, onRequestClose }) {
         likedByDate, setLikedByDate,
 
     } = useContext(AppContext);
-    console.log('Call Fav Task Screennnnnnn');
-    console.log('isShowFavTask in fav task screen: ', isShowFavTask);
+    // console.log('Call Fav Task Screennnnnnn');
+    // console.log('isShowFavTask in fav task screen: ', isShowFavTask);
     // console.log('ShowFavTScreen in fav task screen: ', ShowfavScreen);
-    console.log('allFavTasks= ', allFavTasks);
+    // console.log('allFavTasks= ', allFavTasks);
+    // console.log('likedByDate ', likedByDate);
+
 
     const groupedTasks = allTasks.reduce((acc, task) => {
         if (!acc[task.date]) {
@@ -112,7 +114,7 @@ export default function FavTaskScreen({ visible, onRequestClose }) {
 
     return (
         <View style={StyleSheet.absoluteFill}>
-            <TouchableWithoutFeedback onPress={onRequestClose}>
+            {/* <TouchableWithoutFeedback onPress={onRequestClose}>
                 <View style={{
                     position: 'absolute',
                     // bottom:80,
@@ -120,7 +122,7 @@ export default function FavTaskScreen({ visible, onRequestClose }) {
                     width: width,
                     backgroundColor: 'rgba(0,0,0,0.4)',
                 }} />
-            </TouchableWithoutFeedback>
+            </TouchableWithoutFeedback> */}
 
             <Animated.View
                 style={{
@@ -197,7 +199,7 @@ export default function FavTaskScreen({ visible, onRequestClose }) {
                                             <View style={{
                                                 marginTop: 6, width: 70, height: 35, justifyContent: 'flex-start', flexDirection: 'column', backgroundColor: 'white'
                                             }}>
-                                                <Text style={{ fontSize: 14, color: dayColour[dayjs(date).day()], fontWeight: 'bold'}}>
+                                                <Text style={{ fontSize: 14, color: dayColour[dayjs(date).day()], fontWeight: 'bold' }}>
                                                     {dayjs(date).format('ddd')}
                                                 </Text>
 
@@ -254,52 +256,6 @@ export default function FavTaskScreen({ visible, onRequestClose }) {
     );
 
 
-    // <View style={{ flex: 1 }}>
-    //     <Text>ALLLLLL</Text>
-    //     {isShowFav && (
-    //         <ScrollView
-    //             style={{
-    //                 padding: 10, maxHeight: height / 2 - 100, width: width, backgroundColor: '#E3FDFD', left: 50,
-    //             }}
-    //         >
-    //             {allFavTasks.map((group) => (
-    //                 <View key={group.date} style={{ marginBottom: 12 }}>
-    //                     <Text style={{ fontWeight: 'bold', color: dayjs(group.date).isBefore(dayjs(), 'day') ? 'gray' : 'black' }}>
-    //                         {dayjs(group.date).format('DD MMM YYYY')}
-    //                     </Text>
-    //                     {group.tasks.map((task, index) => {
-    //                         const now = dayjs();
-    //                         const timeFormatted = task.time.replace('.', ':');
-    //                         const taskDateTime = dayjs(`${group.date} ${timeFormatted}`, 'YYYY-MM-DD HH:mm');
-    //                         console.log("timeFormatted");
-    //                         const isPast = taskDateTime.isBefore(now);
-    //                         console.log('isPast', isPast);
-
-    //                         return (
-    //                             <Text
-    //                                 key={index}
-    //                                 style={{
-    //                                     color: isPast ? 'gray' : 'black',
-    //                                     opacity: isPast ? 0.5 : 1,
-    //                                     marginLeft: 8,
-    //                                     marginTop: 4,
-    //                                 }}
-    //                             >
-    //                                 {task.time || '00.00'} : {task.name}
-    //                             </Text>
-    //                         );
-    //                     })}
-    //                 </View>
-    //             ))}
-    //         </ScrollView>
-    //     )}
-
-    //     {isShowFav && (
-    //         <View style={styles.ImageTitle}>
-    //             <Text style={{ fontWeight: 'bold', fontSize: 20, left: 135, top: 12.5, color: 'black' }}>FAV-LIST</Text>
-    //         </View>
-    //     )}
-    // </View>
 
 }
 

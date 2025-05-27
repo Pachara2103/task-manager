@@ -21,6 +21,15 @@ const { width, height } = Dimensions.get('window');
 
 export default function AllTasksScreen({ navigation }) {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const dayColour = [
+        '#FF0B55', // Sunday 
+        '#F3C623', // Monday 
+        '#FF90BB', // Tuesday  
+        '#27ae60', // Wednesday
+        '#FF9B45', // Thursday
+        '#4ED7F1', // Friday
+        '#CB9DF0', // Saturday
+    ];
     const {
         allTasks, setAllTasks,
     } = useContext(AppContext);
@@ -48,7 +57,7 @@ export default function AllTasksScreen({ navigation }) {
                 }));
 
             setAllTasks(allTasksList);
-            console.log('all Task = ', allTasks);
+            // console.log('all Task = ', allTasks);
 
         } catch (e) {
             console.log('Error loading all tasks:', e);
@@ -58,7 +67,7 @@ export default function AllTasksScreen({ navigation }) {
     useEffect(() => {
         if (isFocused) {
             handleShowAllTasks();
-            console.log('loading all task screen');
+            // console.log('loading all task screen');
 
         }
     }, [isFocused]);
@@ -70,6 +79,16 @@ export default function AllTasksScreen({ navigation }) {
             subscription.remove(); // cleanup เวลา component ถูก destroy
         };
     }, []);
+
+    const categoryImages = {
+        exercise: require('./Image/category/exercise.png'),
+        dinner: require('./Image/category/eating.png'),
+        book: require('./Image/category/book.png'),
+        homework: require('./Image/category/homework.png'),
+        meeting: require('./Image/category/meeting.png'),
+        reminder: require('./Image/category/reminder.png'),
+        sleep: require('./Image/category/sleep.png'), 
+    };
 
     return (
         <View style={{ flex: 1, backgroundColor: 'white' }}>
@@ -111,32 +130,70 @@ export default function AllTasksScreen({ navigation }) {
                     const isPast = dayjs(group.date, 'YYYY-MM-DD').isBefore(dayjs().format('YYYY-MM-DD'), 'day');
 
                     return (
-                        <View key={index} style={[styles.dayContainer,isPast&& {opacity:0.5}]}>
+                        <View key={index} style={[styles.dayContainer, isPast && { opacity: 0.5 }]}>
+
+                            {/* <Text style={{ textAlign: 'center', fontSize: 40, fontWeight: 'bold', marginTop: 30, marginLeft: 10 }}>
+                                    {dayjs().date()}
+                                </Text> */}
 
                             <Text style={styles.dateText}>
-                                <Text style={{ color: '#d7dbdd' }}>━━━━━  </Text>
-                                <Text>{dateFormatted}</Text>
-                                <Text style={{ color: '#d7dbdd' }}> ━━━━━</Text>
+                                <Text style={{ color: dayColour[dayjs(group.date).day()], opacity: 0.5 }}>━━━━━  </Text>
+                                <Text style={{ fontSize: 20, fontWeight: 'bold' }}>{dayjs(group.date).date()} {months[dayjs(group.date).month()]}</Text>
+
+                                <Text style={{ color: dayColour[dayjs(group.date).day()], opacity: 0.5 }}> ━━━━━</Text>
                             </Text>
+
+                            <Text style={{ opacity: 0.6, fontSize: 12, color: dayColour[dayjs(group.date).day()], fontWeight: 'bold', position: 'absolute', top: 29, left: width / 2 - 25 }}>
+                                {dayjs(group.date).format('ddd')}
+                            </Text>
+
+
 
                             {group.tasks.map((task, idx) => {
                                 const taskDateTime = dayjs(`${group.date} ${task.time}`, 'YYYY-MM-DD HH:mm');
                                 const isTimePast = taskDateTime.isBefore(dayjs());
+                                // setTaskImage(task)
+                                // setRequireImage(true) 
 
                                 return (
-                                    <View key={idx} style={[styles.taskRow, isTimePast && { opacity: 0.5 }]}>
+                                    <View key={idx} style={{
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        marginBottom: 8,
+                                        opacity: isTimePast ? 0.5 : 1,
+                                        // backgroundColor: 'pink'
+                                    }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10 }}>
                                             <Image
                                                 source={require('./Image/clock.png')}
                                                 style={{ width: 15, height: 15 }}
                                             />
                                             <Text style={styles.timeText}>
-                                               {} {(task.time || '00:00').replace(':', '.')}
+                                                { } {(task.time || '00:00').replace(':', '.')}
                                             </Text>
                                         </View>
 
-                                        <View style={styles.taskBox}>
-                                            <Text style={styles.taskText}>{task.name}</Text>
+                                        <View style={{
+                                            flex: 1,
+                                            backgroundColor: '#fbfcfc',
+                                            padding: 10,
+                                            borderRadius: 15,
+                                            shadowColor: '#000',
+                                            shadowOpacity: 0.1,
+                                            shadowRadius: 4,
+                                            elevation: 2,
+                                            alignItems: 'center',
+                                            flexDirection: 'row'
+                                        }}>
+                                            <Text style={{ fontSize: 14, }}>{task.name}</Text>
+                                            {task.category && categoryImages[task.category] && (
+                                                <Image
+                                                    source={categoryImages[task.category]}
+                                                    style={{ width: 35, height: 35,position:'absolute', right:5,  }}
+                                                />
+                                            )}
+
+
                                         </View>
                                     </View>
                                 );
@@ -144,109 +201,27 @@ export default function AllTasksScreen({ navigation }) {
                         </View>
                     );
                 })}
-            </ScrollView>
-        </View>
+            </ScrollView >
+        </View >
     );
 }
 
 
 const styles = StyleSheet.create({
-    // dayContainer: {
-    //     alignItems: 'center',
-    //     marginVertical: 8,
-    // },
-    ImageContainer: {
-        alignItems: 'center',
-        justifyContent: 'center',
-
-    },
-    dayBox: {
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    dayText: {
-        fontSize: 16,
-        color: '#2d4150',
-    },
-    disabledText: {
-        color: '#d9e1e8',
-    },
-    todayText: {
-        fontWeight: 'bold',
-        color: '#00adf5',
-    },
-    dot: {
-        width: 6,
-        height: 6,
-        borderRadius: 4,
-        marginTop: 1,
-        alignSelf: 'center',
-    },
-    dotDisable: {
-        width: 6,
-        height: 6,
-        borderRadius: 4,
-        marginTop: 1,
-        alignSelf: 'center',
-        opacity: 0.2,
-    },
-
-    ImageTitle: {
-        position: 'absolute',
-        height: 50,
-        width: width,
-        top: 0,
-        left: 0,
-        backgroundColor: '#A6E3E9',
-        // opacity:0.2,
-    },/////////////////////////////////////////
-    title: {
-        fontWeight: 'bold',
-        fontSize: 20,
-        textAlign: 'center',
-        color: 'black',
-        marginBottom: 10,
-    },
     scrollContainer: {
         paddingHorizontal: 10,
         paddingBottom: 20,
         paddingTop: 20,
         // backgroundColor:'pink'
     },
-    ListBox: {
-        width: width / 2,
-        backgroundColor: '#F3E0EC',
-        borderRadius: 12,
-        padding: 10,
-        marginBottom: 10,
-        elevation: 3,
-    },
-    cardDate: {
-        fontWeight: 'bold',
-        fontSize: 14,
-        color: 'black',
-        marginBottom: 4,
-    },
-    cardTask: {
-        fontSize: 13,
-        color: '#333',
-    },
-    moreText: {
-        marginTop: 4,
-        fontSize: 12,
-        color: 'gray',
-        fontStyle: 'italic',
-    },
-
-
     dayContainer: {
         marginBottom: 20,
         paddingHorizontal: 16,
         paddingVertical: 10,
         // backgroundColor: '#f5f5f5',
+        // backgroundColor: 'red',
         borderRadius: 10,
     },
-
     dateText: {
         textAlign: 'center',
         fontSize: 15,
@@ -254,33 +229,11 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
 
-    taskRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-        // backgroundColor:'pink'
-    },
-
     timeText: {
         width: 60,
         fontSize: 14,
         color: '#666',
         fontWeight: 'bold'
-    },
-
-    taskBox: {
-        flex: 1,
-        backgroundColor: '#fbfcfc',
-        padding: 10,
-        borderRadius: 8,
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-
-    taskText: {
-        fontSize: 14,
     },
 
 

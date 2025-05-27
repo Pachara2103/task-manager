@@ -38,9 +38,6 @@ export default function HomeScreen({ route, navigation }) {
   const [taskModalData, setTaskModalData] = useState([]); // task array
   const [modalDate, setModalDate] = useState('');
 
-
-
-
   const scaleAnim = useRef(new Animated.Value(0)).current;
 
   const TaskToDelete = async (selectedTaskIndex) => {
@@ -103,14 +100,6 @@ export default function HomeScreen({ route, navigation }) {
       delete dateColorMap[selectedDate];
       await AsyncStorage.setItem('taskDatesMap', JSON.stringify(dateColorMap));
     }
-
-    // setShowModal(false);
-    // console.log(isShowAllList);
-
-    // if (isShowAllList) {
-    // const tasksJson = await AsyncStorage.getItem(`tasks-${selectedDate}`);
-    // const tasks = tasksJson ? JSON.parse(tasksJson) : [];
-    // setTaskModalData(tasks);
     loadMarkedDates();
   }
   const loadMarkedDates = async () => {
@@ -173,13 +162,15 @@ export default function HomeScreen({ route, navigation }) {
       }));
     };
 
-    if (taskModalVisible) {
-      loadIsLiked();
-    }
-  }, [taskModalVisible, selectedDate]);
+    // if (taskModalVisible) {
+    loadIsLiked();
 
-  const [headerAnim] = useState(new Animated.Value(-100));
-  const isFocused = useIsFocused(); //useIsFocused ช่วยให้โหลดใหม่เมื่อกลับมาจากหน้าอื่น
+    // console.log('test system');
+    // console.log('isShowFavTask', isShowFavTask);
+  }, [taskModalVisible, selectedDate, isShowFavTask]);
+
+  const isFocused = useIsFocused();
+
   useEffect(() => {
     if (isFocused) {
       loadMarkedDates();
@@ -268,8 +259,8 @@ export default function HomeScreen({ route, navigation }) {
       const makeKey = task => `${task.date}-${task.name}-${task.time}`;
 
       if (isLiked) {
-        console.log('Like!!!!!!!!!!!!!!!!!!!!!  date= ', selectedDate);
-        console.log('tasks= ', tasks);
+        // console.log('Like!!!!!!!!!!!!!!!!!!!!!  date= ', selectedDate);
+        // console.log('tasks= ', tasks);
 
         const existingKeys = new Set(allFavTasks.map(makeKey));
         const merged = [...allFavTasks];
@@ -286,11 +277,11 @@ export default function HomeScreen({ route, navigation }) {
 
         const a = await AsyncStorage.getItem(favKey);
         let b = a ? JSON.parse(a) : [];
-        console.log('allFavTask= ', b);
+        // console.log('allFavTask= ', b);
 
       } else {
-        console.log('Like!!!!!!!!!!!!!!!!!!!!!  date= ', selectedDate);
-        console.log('tasks= ', tasks);
+        // console.log('Like!!!!!!!!!!!!!!!!!!!!!  date= ', selectedDate);
+        // console.log('tasks= ', tasks);
         const removeKeys = new Set(tasks.map(makeKey));
         const filtered = allFavTasks.filter(task => !removeKeys.has(makeKey(task)));
 
@@ -298,13 +289,15 @@ export default function HomeScreen({ route, navigation }) {
 
         const a = await AsyncStorage.getItem(favKey);
         let b = a ? JSON.parse(a) : [];
-        console.log('allFavTask= ', b);
+        // console.log('allFavTask= ', b);
 
       }
     };
 
     handleLike();
-  }, [likedByDate[selectedDate]]);
+    // }, [likedByDate[selectedDate]]);
+  }, [likedByDate, selectedDate]);
+
 
 
 
@@ -350,11 +343,28 @@ export default function HomeScreen({ route, navigation }) {
 
   return (
 
-    <View style={{ height: height - 200, backgroundColor: 'white', flexDirection: 'column' }}>
-      <View
+    <View style={{
+      height: height - 120,
+      backgroundColor: 'white',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      paddingRight: 50,
+
+      borderRadius: 40,         // ขอบโค้ง
+      overflow: 'hidden',       // ต้องมี เพื่อให้ตัดขอบลูก
+      marginHorizontal: 10,     // เผื่อเว้นขอบไม่ติดจอ
+      marginVertical: 10,  
+      elevation: 5,             // เงาสำหรับ Android
+      shadowColor: '#000',      // เงาสำหรับ iOS
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+    }}>
+      {/* <View
         style={{
           width: width,
           height: 100,
+          marginTop:80,
           backgroundColor: '#DBE2EF',
         }}
       >
@@ -365,7 +375,7 @@ export default function HomeScreen({ route, navigation }) {
         }}>
           CALENDAR
         </Text>
-      </View>
+      </View> */}
 
       <CalendarList
         current={dayjs().format('YYYY-MM-DD')} // เดือนปัจจุบัน
@@ -379,25 +389,62 @@ export default function HomeScreen({ route, navigation }) {
         hideExtraDays={true}
         dayComponent={renderDay}
         markedDates={markedDates}
+        hideDayNames={true}
 
         renderHeader={(date) => {
           const month = dayjs(date).format('MMMM YYYY');
           return (
             <View style={{
+              width: width,
+              height: 80,
               paddingBottom: 10,
+              paddingRight: 20,
               flexDirection: 'column',
               justifyContent: 'center',
               alignItems: 'center',
+              // backgroundColor: 'red',
+              position: "absolutes",
+              top: 10,
+              right: 30
+
             }}>
-              <View style={styles.monthDivider} />
+              <View style={{
+                height: 2,
+                width: width - 40,
+                backgroundColor: '#ccc',
+                position: 'absolute',
+                right:25,
+                bottom: 80,
+                opacity: 0.2,
+              }} />
               <Text style={[
                 styles.monthHeader, {
-                  position: 'absolute',
-                  left: 132.5,
-                  top: -25,
 
                 }]}>{month}</Text>
+
+              <View style={{
+                width: width - 40,
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginVertical: 5,
+                backgroundColor: 'green',
+                marginLeft: 20,
+                gap: 21.5
+              }}>
+
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+
+                  <View key={index} style={styles.dayBox}>
+                    <Text style={{ position: 'absolute', bottom: 0, fontSize: 12, fontWeight: 'bold' }} >
+                      {day}
+                    </Text>
+
+                  </View>
+                ))}
+              </View>
             </View>
+
+
           );
         }}
 
@@ -408,11 +455,12 @@ export default function HomeScreen({ route, navigation }) {
           todayTextColor: '#00adf5',
           monthTextColor: '#333',
           textMonthFontWeight: 'bold',
+
         }}
         style={{ width }}
       />
 
-      <Modal
+      < Modal
         transparent={true}
         visible={taskModalVisible}
         onRequestClose={closeModal}
@@ -523,14 +571,12 @@ export default function HomeScreen({ route, navigation }) {
                   <TouchableOpacity onPress={(event) => {
                     //ไปยังหน้า add กด add เสร็มกลับมาหน้า home ที่โช modal ไว้
                     setFromCalendar(true);
-                    setFromCalendar(true);
-                    navigation.navigate('Add', {
+                    navigation.navigate('ADD', {
                       isFromCalendar: true,
                       dateFromCalendar: selectedDate,
                     });
                     closeModal();
-                    console.log('dateFromCalendar', selectedDate);
-
+                    // console.log('dateFromCalendar', selectedDate);
                   }}>
 
                     <Image
@@ -556,7 +602,8 @@ const styles = StyleSheet.create({
   dayContainer: {
     alignItems: 'center',
     marginVertical: 5,
-    // backgroundColor:'blue',
+    backgroundColor: 'blue',
+    marginRight: 20,
 
   },
   ImageContainer: {
@@ -567,7 +614,7 @@ const styles = StyleSheet.create({
   dayBox: {
     justifyContent: 'center',
     alignItems: 'center',
-    // backgroundColor:'pink',
+    backgroundColor: 'pink',
     width: 30, height: 30
 
   },
@@ -613,16 +660,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingTop: 10,
     color: '#ccc',
-  },
-  monthDivider: {
-    height: 2,
-    width: width - 40,
-    backgroundColor: '#ccc',
-    marginTop: -65,
-    marginLeft: -5,
-    marginHorizontal: 20,
-    opacity: 0.2,
-
   },
 
 

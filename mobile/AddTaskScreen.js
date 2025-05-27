@@ -9,14 +9,12 @@ import { AppContext } from './AppContext';
 import dayjs from 'dayjs';
 import moment from 'moment-timezone';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
+// import { opacity } from 'react-native-reanimated/lib/typescript/Colors';
 
 
 //ให้วนลูปในtaskdate หลังจากลบ taskไหน ว่ามร task เหลือในวันนั้นมั้ย taskDates: ["2025-05-21", "2025-05-22"]
 //ถ้าบวกให้ดูว่ามียังมีเเล้วไม่ต้องเพิ่ม
 const { width, height } = Dimensions.get('window');
-
-
-
 export default function AddTaskScreen({ route, navigation }) {
 
 
@@ -39,15 +37,13 @@ export default function AddTaskScreen({ route, navigation }) {
   // setDate, เเก้อันนี้ด้วยยยยยยยยยยยยยยยยยยยย เเก้ให้ add เเล้ว add ใน alltask, allfavtask if liked
 
   const [taskName, setTaskName] = useState('');
-  const [taskDes, setTaskDes] = useState('');
+  const [category, setCategory] = useState('');
+  // const [onpress, setOnpress] = useState(false);
+
   const { taskToEdit, dateFromCalendar } = route.params || {};
-  console.log(' isFromCalendar', isFromCalendar);
+  // console.log(' isFromCalendar', isFromCalendar);
 
   const [time, setTime] = useState({ hour: '00', min: '00' });
-  const [tempHour, setTempHour] = useState('00');
-  const [tempMin, setTempMin] = useState('00');
-
-  const [modalVisible, setModalVisible] = useState(false);
 
   const [pickdate, setPickedDate] = useState(new Date());
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
@@ -107,10 +103,15 @@ export default function AddTaskScreen({ route, navigation }) {
       Alert.alert('กรุณาใส่ชื่อ Task');
       return;
     }
+    if (!category.trim()) {
+      Alert.alert('กรุณาเลือก category');
+      return;
+    }
     const newTask = {
       name: taskName,
       time: `${time.hour}:${time.min}`,
-      date: selectedDate
+      date: selectedDate,
+      category: category
     };
 
     const key = `tasks-${selectedDate}`;
@@ -122,7 +123,7 @@ export default function AddTaskScreen({ route, navigation }) {
       // ถ้าเป็น edit → ลบ task เดิม
       if (taskToEdit) {
         tasks = tasks.filter(
-          (t) => !(t.name === taskToEdit.name && t.time === taskToEdit.time)
+          (t) => !(t.name === taskToEdit.name && t.time === taskToEdit.time && t.category === taskToEdit.category)
         );
       }
       //เวลาไม่ซ้ำ
@@ -144,7 +145,8 @@ export default function AddTaskScreen({ route, navigation }) {
             !(
               t.name === taskToEdit.name &&
               t.time === taskToEdit.time &&
-              t.date === taskToEdit.date
+              t.date === taskToEdit.date &&
+              t.category === taskToEdit.category
             )
         );
       }
@@ -172,7 +174,8 @@ export default function AddTaskScreen({ route, navigation }) {
                 !(
                   t.name === taskToEdit.name &&
                   t.time === taskToEdit.time &&
-                  t.date === taskToEdit.date
+                  t.date === taskToEdit.date &&
+                  t.category === taskToEdit.category
                 )
             );
           }
@@ -198,7 +201,7 @@ export default function AddTaskScreen({ route, navigation }) {
         const dateColorMap = jsonMap ? JSON.parse(jsonMap) : {};
         if (!dateColorMap[selectedDate]) {
           const colors = ['#CD5656', '#9B7EBD', '#8DD8FF', '#FFB26F', '#84AE92'];
-                            //เเดง     ,  ม่วง    ,  ฟ้า   ,   ส้ม  ,     เขียว  ,
+          //เเดง     ,  ม่วง    ,  ฟ้า   ,   ส้ม  ,     เขียว  ,
           const usedColors = Object.values(dateColorMap);
           const availableColors = colors.filter(c => !usedColors.includes(c));
           const colorPool = availableColors.length > 0 ? availableColors : colors;
@@ -229,7 +232,7 @@ export default function AddTaskScreen({ route, navigation }) {
 
       Alert.alert('Successfully Add Task');
       if (isFromCalendar) {
-        navigation.navigate('Home', {
+        navigation.navigate('HOME', {
           isFromCalendar: true,
           // dateBackFromAdd: dateFromCalendar,
         });
@@ -287,15 +290,222 @@ export default function AddTaskScreen({ route, navigation }) {
 
           }}>
 
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={styles.Description}
-              placeholder="Add Description..."
-              value={taskDes}
-              onChangeText={setTaskDes}
-              multiline={true}
-              textAlignVertical="top"
-            />
+            <Text style={styles.label}>Category</Text>
+
+            <View style={{
+              // backgroundColor: 'pink',
+              width: width - 20,
+              height: 100,
+              flexDirection: 'row',
+              flexWrap: 'wrap', 
+              columnGap:15,
+              rowGap:5,
+              marginLeft:10
+              // justifyContent:'center'
+            }}>
+
+              {/* <View style={{
+                maxWidth: 100,
+                height: 30,
+                backgroundColor: 'red',
+                justifyContent: 'flex-start',
+                flexDirection: 'row'
+              }}> */}
+
+
+              <View style={{ backgroundColor: '#F8FAFC', borderRadius: 20, height: 30, width: 100 }}>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setCategory(category == 'exercise' ? '' : 'exercise')
+                    console.log(category == 'exercise' ? 'cancel' : 'exercise')
+                  }}>
+
+                  <View style={{ backgroundColor: '#E8F9FF', width: 30, borderRadius: 20 }}>
+                    <Image
+                      source={
+                        category == 'exercise'
+                          ? require('./Image/afterworkout.png')
+                          : require('./Image/beforeworkout.png')
+                      }
+                      style={{ width: 30, height: 30 }}
+                    />
+                  </View>
+
+                </TouchableOpacity>
+
+                <Text style={{ position: 'absolute', left: 35, top: 5, opacity: category == 'exercise' ? 1 : 0.2 }}>
+                  Exercise
+                </Text>
+
+              </View>
+
+              <View style={{ backgroundColor: '#F8FAFC', borderRadius: 20, height: 30, width: 100 }}>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setCategory(category == 'dinner' ? '' : 'dinner')
+                    console.log(category == 'dinner' ? 'cancel' : 'dinner')
+                  }}>
+
+                  <View style={{ backgroundColor: '#E8F9FF', width: 30, borderRadius: 20 }}>
+                    <Image
+                      source={
+                        category == 'dinner'
+                          ? require('./Image/Afood.png')
+                          : require('./Image/Bfood.png')
+                      }
+                      style={{ width: 30, height: 30 }}
+                    />
+                  </View>
+
+                </TouchableOpacity>
+
+                <Text style={{ position: 'absolute', left: 35, top: 5, opacity: category == 'dinner' ? 1 : 0.2 }}>
+                  Dinner
+                </Text>
+
+              </View>
+              <View style={{ backgroundColor: '#F8FAFC', borderRadius: 20, height: 30, width: 100 }}>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setCategory(category == 'book' ? '' : 'book')
+                    console.log(category == 'book' ? 'cancel' : 'book')
+                  }}>
+
+                  <View style={{ backgroundColor: '#E8F9FF', width: 30, borderRadius: 20 }}>
+                    <Image
+                      source={
+                        category == 'book'
+                          ? require('./Image/Abook.png')
+                          : require('./Image/Bbook.png')
+                      }
+                      style={{ width: 30, height: 30 }}
+                    />
+                  </View>
+
+                </TouchableOpacity>
+
+                <Text style={{ position: 'absolute', left: 35, top: 5, opacity: category == 'book' ? 1 : 0.2 }}>
+                  Reading
+                </Text>
+
+              </View>
+
+              <View style={{ backgroundColor: '#F8FAFC', borderRadius: 20, height: 30, width: 100 }}> 
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setCategory(category == 'homework' ? '' : 'homework')
+                    console.log(category == 'homework' ? 'cancel' : 'homework')
+                  }}>
+
+                  <View style={{ backgroundColor: '#E8F9FF', width: 30, borderRadius: 20 }}>
+                    <Image
+                      source={
+                        category == 'homework'
+                          ? require('./Image/Ahomework.png')
+                          : require('./Image/Bhomework.png')
+                      }
+                      style={{ width: 30, height: 30 }}
+                    />
+                  </View>
+
+                </TouchableOpacity>
+
+                <Text style={{ position: 'absolute', left: 35, top: 5, opacity: category == 'homework' ? 1 : 0.2 }}>
+                  Homework
+                </Text>
+
+              </View>
+
+              <View style={{ backgroundColor: '#F8FAFC', borderRadius: 20, height: 30, width: 100 }}>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setCategory(category == 'meeting' ? '' : 'meeting')
+                    console.log(category == 'meeting' ? 'cancel' : 'meeting')
+                  }}>
+
+                  <View style={{ backgroundColor: '#E8F9FF', width: 30, borderRadius: 20 }}>
+                    <Image
+                      source={
+                        category == 'meeting'
+                          ? require('./Image/Ameeting.png')
+                          : require('./Image/Bmeeting.png')
+                      }
+                      style={{ width: 30, height: 30 }}
+                    />
+                  </View>
+
+                </TouchableOpacity>
+
+                <Text style={{ position: 'absolute', left: 35, top: 5, opacity: category == 'meeting' ? 1 : 0.2 }}>
+                  Meeting
+                </Text>
+
+              </View>
+
+              <View style={{ backgroundColor: '#F8FAFC', borderRadius: 20, height: 30, width: 100 }}>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setCategory(category == 'reminder' ? '' : 'reminder')
+                    // console.log(category == 'book' ? 'cancel' : 'book')
+                  }}>
+
+                  <View style={{ backgroundColor: '#E8F9FF', width: 30, borderRadius: 20 }}>
+                    <Image
+                      source={
+                        category == 'reminder'
+                          ? require('./Image/Areminder.png')
+                          : require('./Image/Breminder.png')
+                      }
+                      style={{ width: 30, height: 30 }}
+                    />
+                  </View>
+
+                </TouchableOpacity>
+
+                <Text style={{ position: 'absolute', left: 35, top: 5, opacity: category == 'reminder' ? 1 : 0.2 }}>
+                  Reminder
+                </Text>
+
+              </View>
+
+              <View style={{ backgroundColor: '#F8FAFC', borderRadius: 20, height: 30, width: 100 }}>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setCategory(category == 'sleep' ? '' : 'sleep')
+                    // console.log(category == 'book' ? 'cancel' : 'book')
+                  }}>
+
+                  <View style={{ backgroundColor: '#E8F9FF', width: 30, borderRadius: 20 }}>
+                    <Image
+                      source={
+                        category == 'sleep'
+                          ? require('./Image/Asleep.png')
+                          : require('./Image/Bsleep.png')
+                      }
+                      style={{ width: 30, height: 30 }}
+                    />
+                  </View>
+
+                </TouchableOpacity>
+
+                <Text style={{ position: 'absolute', left: 35, top: 5, opacity: category == 'sleep' ? 1 : 0.2 }}>
+                  Sleep
+                </Text>
+
+              </View>
+
+
+
+
+            </View>
+
 
           </View>
 

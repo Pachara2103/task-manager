@@ -134,7 +134,7 @@ export default function App() {
 
     likedByDate, setLikedByDate,
 
-    
+
   };
 
   useEffect(() => {
@@ -198,10 +198,20 @@ export default function App() {
           screenOptions={({ route }) => ({
             headerShown: false,
             tabBarStyle: {
-              height: 80,
-              paddingBottom: 15,
+              position: 'absolute',
+              bottom: 10,
+              left: 16,
+              right: 16,
+              elevation: 5,
               backgroundColor: 'white',
-              borderTopWidth: 0.15,
+              borderRadius: 60,
+              height: 85,
+              paddingBottom: 15,
+              borderTopWidth: 0,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.2,
+              shadowRadius: 6.46,
             },
             tabBarIcon: ({ focused }) => {
               let iconSource;
@@ -242,9 +252,7 @@ export default function App() {
                 <TouchableOpacity
                   {...props}
                   onPress={() => {
-                    // console.log('before press ShowFavTask', isShowFavTask)
                     setShowFavTask(!isShowFavTask)
-                    // console.log('ShowFavTask', isShowFavTask)
                   }}>
                   <Image
                     source={
@@ -265,9 +273,7 @@ export default function App() {
 
         </Tab.Navigator>
 
-        {/* {isShowFavTask && (
-          <FavTaskScreen onClose={() => setShowFavTask(false)} />
-        )} */}
+
         <FavTaskScreen
           visible={isShowFavTask}
           onRequestClose={() => setShowFavTask(false)}
