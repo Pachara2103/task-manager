@@ -1,16 +1,13 @@
-import { View, Text, TouchableOpacity, Dimensions, Image, DeviceEventEmitter, Buttontter } from 'react-native';
-import axios from 'axios'; //ส่ง HTTP requests (เช่น GET, POST) ไปยัง backend หรือ API (เช่นดึงข้อมูลจากเซิร์ฟเวอร์)
+import { Dimensions, Image, DeviceEventEmitter } from 'react-native';
 import "./global.css"
-// import { Calendar } from 'react-native-calendars';
 import 'react-native-gesture-handler';
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 
 import HomeScreen from './HomeScreen';
-import ListTaskScreen from './ListTaskScreen';
 import AddTaskScreen from './AddTaskScreen';
 import AllTasksScreen from './AllTasksScreen';
 import FavTaskScreen from './FavTaskScreen';
@@ -20,21 +17,14 @@ import { AppContext } from './AppContext';
 ///
 // HomeScreen.js
 import React, { useState, useEffect } from 'react';
-import { Calendar } from 'react-native-calendars';
 import dayjs from 'dayjs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useIsFocused } from '@react-navigation/native';
+
 ///
-
-
-// import dayjs from 'dayjs';
-// import { Ionicons } from '@expo/vector-icons';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-
-
-
-const BASE_URL = 'http://192.168.43.9:5000'; // เปลี่ยน IP ให้ตรงกับคอม
 
 function HomeStack() {
   return (
@@ -54,29 +44,7 @@ function AllTasksStack() {
 function FavTaskStack() {
   return (
     <Stack.Navigator>
-      <Stack.Screen name="FavTask" component={FavTaskScreen} options={{ headerShown: false }} />
-    </Stack.Navigator>
-  );
-}
-function ListTaskStack() {
-  return (
-    <Stack.Navigator>
-      <Stack.Screen name="List-Task" component={ListTaskScreen}
-      // options={({ navigation }) => ({
-      //   headerShown: true,  // เปิด header
-      //   title: 'All Tasks',
-      //   headerLeft: () => (
-      //     <Button
-      //       title="Back"
-      //       onPress={() => {
-      //         setShowListTask(false),
-      //           navigation.navigate('List-Task')
-      //       }}
-      //     />
-      //   ),
-      // })}
-      />
-
+      <Stack.Screen name="Fav Task" component={FavTaskScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
@@ -91,13 +59,51 @@ function AddStack() {
 
 export default function App() {
   console.log('-----------------------------------');
+  // const isFocused = useIsFocused();
+  // useEffect(() => {
+  //   loadMarkedDates();
+
+  // }, [isFocused]);
+
+  // const loadMarkedDates = async () => {
+  //   try {
+  //     const jsonDatesMap = await AsyncStorage.getItem('taskDatesMap');
+  //     const datesMap = jsonDatesMap ? JSON.parse(jsonDatesMap) : {};
+
+  //     const updatedMarks = {};
+  //     // const colors = ['pink', 'orange', 'red', 'green', 'purple'];
+
+  //     for (const date in datesMap) {
+  //       // เช็คว่ามี task จริงในวันนั้นไหม
+  //       const tasksJson = await AsyncStorage.getItem(`tasks-${date}`);
+  //       const tasks = tasksJson ? JSON.parse(tasksJson) : [];
+
+  //       if (tasks.length > 0) {
+  //         updatedMarks[date] = {
+  //           marked: true,
+  //           dotColor: datesMap[date],
+  //         };
+  //       } else {
+  //         // ถ้าไม่มี task แล้ว ให้ลบวันนั้นออกจาก map
+  //         delete datesMap[date];
+  //       }
+  //     }
+
+  //     // Save updated taskDatesMap
+  //     await AsyncStorage.setItem('taskDatesMap', JSON.stringify(datesMap));
+  //     setMarkedDates(updatedMarks);
+  //     console.log('loading mark dateeeeeeeeeeeeee');
+  //   } catch (e) {
+  //     console.log('Error loading marked dates:', e);
+  //   }
+  // };
 
   const [allTasks, setAllTasks] = useState([]);
   const [allFavTasks, setAllFavTasks] = useState([]);
   const [tasks, setTasks] = useState([]);
 
   const [markedDates, setMarkedDates] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [selectedTaskIndex, setSelectedTaskIndex] = useState(null);
 
   const [isShowFav, setShowFav] = useState(false);
@@ -105,13 +111,12 @@ export default function App() {
   const [isLiked, setIsLiked] = useState(false);
   const [isShowFavTask, setShowFavTask] = useState(false);
 
-
   const [isFromCalendar, setFromCalendar] = useState(false);
 
   const [likedByDate, setLikedByDate] = useState({});
+  // console.log('start selecdate = ', selectedDate);
 
 
-  // const [isShowListTask, setShowListTask] = useState(false);
 
   const { width, height } = Dimensions.get('window');
   const dayWidth = width / 7;
@@ -134,25 +139,14 @@ export default function App() {
 
     likedByDate, setLikedByDate,
 
-
   };
 
-  useEffect(() => {
-    const subscription = DeviceEventEmitter.addListener('reloadAllFavTasks', ShowFav);
-    console.log('reloadAllFavTasks');
+  // useEffect(() => {
+  //   const subscription = DeviceEventEmitter.addListener('reloadAllFavTasks', ShowFav);
+  //   console.log('reloadAllFavTasks');
 
-    return () => subscription.remove();
-  }, []);
-
-  useEffect(() => {
-    if (isShowFavTask) {
-      // DeviceEventEmitter.emit('OpenFavTaskScreen');
-      console.log('OpenFavTask', isShowFavTask)
-    } else {
-      // DeviceEventEmitter.emit('CloseFavTaskScreen');
-      console.log('CloseFavTask', isShowFavTask)
-    }
-  }, [isShowFavTask]);
+  //   return () => subscription.remove();
+  // }, []);
 
 
   const ShowFav = async () => {
@@ -229,11 +223,11 @@ export default function App() {
                   ? require('./Image/afteradd.png')
                   : require('./Image/beforeadd.png');
               }
-              // else if (route.name === 'ListTask') {
-              //   iconSource = focused
-              //     ? require('./Image/afterlist.png')
-              //     : require('./Image/beforelist.png');
-              // }
+              else if (route.name === 'FAV') {
+                iconSource = focused
+                  ? require('./Image/afterfav.png')
+                  : require('./Image/beforefav.png')
+              }
 
 
               return <Image source={iconSource} style={{ width: 30, height: 30 }} />;
@@ -243,43 +237,9 @@ export default function App() {
           <Tab.Screen name="HOME" component={HomeStack} options={{ tabBarLabelStyle: { marginTop: 3, } }} />
           <Tab.Screen name="ALL" component={AllTasksStack} options={{ tabBarLabelStyle: { marginTop: 3, } }} />
           <Tab.Screen name="ADD" component={AddStack} options={{ tabBarLabelStyle: { marginTop: 3, } }} />
-          {/* <Tab.Screen name="ListTask" component={ListTaskScreen} options={{ tabBarLabelStyle: { marginTop: 3, } }} /> */}
-          <Tab.Screen
-            name="Heart"
-            // component={FavTaskStack}
-            options={{
-              tabBarButton: (props) => (
-                <TouchableOpacity
-                  {...props}
-                  onPress={() => {
-                    setShowFavTask(!isShowFavTask)
-                  }}>
-                  <Image
-                    source={
-                      isShowFavTask
-                        ? require('./Image/afterfav.png')
-                        : require('./Image/beforefav.png')
-                    }
-                    style={{ width: 30, height: 30 }}
-                  />
-                </TouchableOpacity>
-              ),
-            }}
-          >
-            {() => null}
-          </Tab.Screen>
-
-
+          <Tab.Screen name="FAV" component={FavTaskStack} options={{ tabBarLabelStyle: { marginTop: 3, } }} />
 
         </Tab.Navigator>
-
-
-        <FavTaskScreen
-          visible={isShowFavTask}
-          onRequestClose={() => setShowFavTask(false)}
-        />
-
-
 
       </NavigationContainer>
     </AppContext.Provider>

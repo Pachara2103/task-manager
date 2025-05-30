@@ -1,29 +1,17 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext} from 'react';
 import { View, Text, Dimensions, StyleSheet, Animated, Image, ScrollView, TouchableOpacity, TouchableWithoutFeedback, Alert } from 'react-native';
-import { Calendar } from 'react-native-calendars';
 import dayjs from 'dayjs';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppContext } from './AppContext';
+import { useIsFocused } from '@react-navigation/native';  // ⬅️ นำเข้า hook นี้
 
-
-
-
-function formatDate(dateString) {
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-
-
-    const dateObj = new Date(dateString);
-    const day = dateObj.getDate();
-    const month = months[dateObj.getMonth()];
-    const year = dateObj.getFullYear();
-    return `${day} ${month} ${year}`;
-}
 
 const { width, height } = Dimensions.get('window');
 
+export default function FavTaskScreen({ navigation }) {
+    const isFocused = useIsFocused();
+    // if (!isFocused) return null;
+    
 
-export default function FavTaskScreen({ visible, onRequestClose }) {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const dayColour = [
         '#FF0B55', // Sunday 
@@ -35,223 +23,142 @@ export default function FavTaskScreen({ visible, onRequestClose }) {
         '#CB9DF0', // Saturday
     ];
 
-    const [ShowfavScreen, setShowFavScreen] = useState(true);
-    const [isVisible, setIsVisible] = useState(visible);
-    // const { isShowFav, isShowAllList, isShowHome, isShowAdd, allTasks } = route.params || {};
-    // console.log('alltask= ', allTasks);
-    // console.log('all list show= ', isShowAllList);
-    // const popupAnim = useRef(new Animated.Value(600)).current; // เริ่มอยู่นอกจอด้านล่าง
-    const popupHeightAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-        if (visible) {
-            setIsVisible(true);  // แสดงก่อน animate
-
-            Animated.timing(popupHeightAnim, {
-                toValue: height / 2 - 200,
-                duration: 300,
-                useNativeDriver: false,
-            }).start();
-        } else {
-            Animated.timing(popupHeightAnim, {
-                toValue: 0,
-                duration: 300,
-                useNativeDriver: false,
-            }).start(() => {
-                setIsVisible(false);  // ซ่อนหลัง animation จบ
-            });
-        }
-    }, [visible]);
-
     const {
-        allTasks, setAllTasks,
         allFavTasks, setAllFavTasks,
-        tasks, setTasks,
-
-        markedDates, setMarkedDates,
-        selectedDate, setSelectedDate,
-        selectedTaskIndex, setSelectedTaskIndex,
-
-        isShowFav, setShowFav,
-        isLiked, setIsLiked,
-        isShowAllList, setShowAllList,
-        isShowFavTask, setShowFavTask,
-
-        isFromCalendar, setFromCalendar,
-
-        likedByDate, setLikedByDate,
-
     } = useContext(AppContext);
-    // console.log('Call Fav Task Screennnnnnn');
-    // console.log('isShowFavTask in fav task screen: ', isShowFavTask);
-    // console.log('ShowFavTScreen in fav task screen: ', ShowfavScreen);
-    // console.log('allFavTasks= ', allFavTasks);
-    // console.log('likedByDate ', likedByDate);
 
+    const categoryImages = {
+        exercise: require('./Image/category/exercise.png'),
+        dinner: require('./Image/category/eating.png'),
+        book: require('./Image/category/book.png'),
+        homework: require('./Image/category/homework.png'),
+        meeting: require('./Image/category/meeting.png'),
+        reminder: require('./Image/category/reminder.png'),
+        sleep: require('./Image/category/sleep.png'),
+    };
+    // console.log('allfavTask', allFavTasks);
 
-    const groupedTasks = allTasks.reduce((acc, task) => {
-        if (!acc[task.date]) {
-            acc[task.date] = [];
-        }
-        acc[task.date].push(task);
-        return acc;
-    }, {});
+    function groupTasksByDate(tasks) {
+        const groups = {};
+        tasks.forEach(task => {
+            if (!groups[task.date]) {
+                groups[task.date] = { date: task.date, tasks: [] };
+            }
+            groups[task.date].tasks.push(task);
+        });
+        return Object.values(groups);
 
-    const allTasksList = Object.keys(groupedTasks)
-        .sort((a, b) => dayjs(a).unix() - dayjs(b).unix()) // เรียงวันที่ (ถ้าต้องการ)
-        .map(date => ({
-            date,
-            tasks: groupedTasks[date].sort((a, b) => a.time.localeCompare(b.time))
-        }));
+    }
 
-    if (!isVisible) return null;
-
-    // const handleClose = () => {
-    //     setShowFavScreen(false); // แทน onClose โดยตรง
-    // };
-
-
+    const groupedTasks  = groupTasksByDate(allFavTasks);
 
     return (
-        <View style={StyleSheet.absoluteFill}>
-            {/* <TouchableWithoutFeedback onPress={onRequestClose}>
-                <View style={{
-                    position: 'absolute',
-                    // bottom:80,
-                    height: height - 80,
-                    width: width,
-                    backgroundColor: 'rgba(0,0,0,0.4)',
-                }} />
-            </TouchableWithoutFeedback> */}
+        <View style={{ flex: 1 }} >
 
-            <Animated.View
-                style={{
-                    position: 'absolute',
-                    bottom: 80,
-                    left: 0,
-                    right: 0,
-                    height: popupHeightAnim,
-                    backgroundColor: 'pink',
-                    borderTopLeftRadius: 20,
-                    borderTopRightRadius: 20,
-                    padding: 20,
-                    zIndex: 999,
-                    overflow: 'hidden',
-                }}
-            >
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {allFavTasks.length > 0 &&
-                        Array.from(
-                            new Set(allFavTasks.map((task) => task.date))
-                        ).map((date) => {
-                            const tasksForDate = allFavTasks.filter((task) => task.date === date);
-                            return (
-                                <View
-                                    key={date}
-                                    style={{
-                                        width: 170,
-                                        marginRight: 10,
-                                        backgroundColor: '#fce4ec',
-                                        borderRadius: 40,
-                                        padding: 5,
-                                    }}  >
+            <View style={{
+                width: width,
+                height: 160,
+                backgroundColor: '#DBE2EF',
+                flexDirection: 'column',
+            }}>
 
-                                    <TouchableOpacity
-                                        onPress={() => {
-                                            // setLikedByDate(prev => ({
-                                            //     ...prev,
-                                            //     [selectedDate]: !prev[selectedDate]
-                                            // }));
-                                            Alert.alert("wow")
+                <View style={{ justifyContent: 'flex-start', marginTop: 80, height: 40, width: width }}>
+                    <Text style={{ textAlign: 'left', fontSize: 30, fontWeight: 'bold', marginLeft: 10 }}>
+                        FAVORITE TASK
+                    </Text>
+
+                </View>
+
+                <View style={{ height: 30, width: width - 20, justifyContent: 'flex-start', marginLeft: 10 }}>
+                    <Text style={{ fontSize: 15 }}>
+                        {dayjs().format('dddd')},  {dayjs().date()} {months[dayjs().month()]} {dayjs().year()}
+                    </Text>
+                    
+                </View>
+
+            </View>
+
+            <View style={{
+                height: height - 260,
+
+            }}>
+
+                <ScrollView contentContainerStyle={styles.scrollContainer}>
+                    {groupedTasks.map((group, index) => {
+                        const isPast = dayjs(group.date, 'YYYY-MM-DD').isBefore(dayjs().format('YYYY-MM-DD'), 'day');
+
+                        return (
+                            <View key={index} style={[styles.dayContainer, isPast && { opacity: 0.5 }]}>
+
+                                <Text style={styles.dateText}>
+                                    <Text style={{ color: dayColour[dayjs(group.date).day()], opacity: 0.5 }}>━━━━━  </Text>
+                                    <Text style={{ fontSize: 20, fontWeight: 'bold' }}>{dayjs(group.date).date()} {months[dayjs(group.date).month()]}</Text>
+
+                                    <Text style={{ color: dayColour[dayjs(group.date).day()], opacity: 0.5 }}> ━━━━━</Text>
+                                </Text>
+
+                                <Text style={{ opacity: 0.6, fontSize: 12, color: dayColour[dayjs(group.date).day()], fontWeight: 'bold', position: 'absolute', top: 20, left: width / 2 - 25 }}>
+                                    {dayjs(group.date).format('ddd')}
+                                </Text>
+
+
+
+                                {group.tasks.map((task, idx) => {
+                                    const taskDateTime = dayjs(`${group.date} ${task.time}`, 'YYYY-MM-DD HH:mm');
+                                    const isTimePast = taskDateTime.isBefore(dayjs());
+                                    // setTaskImage(task)
+                                    // setRequireImage(true) 
+
+                                    return (
+                                        <View key={idx} style={{
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            marginBottom: 8,
+                                            opacity: isTimePast ? 0.5 : 1,
+                                            // backgroundColor: 'pink'
                                         }}>
-
-                                        <Image
-                                            source={
-                                                likedByDate[selectedDate]
-                                                    ? require('./Image/fullheart2.png')
-                                                    : require('./Image/noheart2.png')
-                                            }
-                                            style={{ width: 35, height: 35, position: 'absolute', top: 5, left: 10 }}
-                                        />
-                                    </TouchableOpacity>
-
-
-
-                                    <View style={{
-                                        width: 110,
-                                        height: 40,
-                                        backgroundColor: 'orange',
-                                        flexDirection: 'row',
-                                        marginLeft: 50,
-
-                                    }}>
-
-                                        <View style={{ justifyContent: 'flex-end', height: 40, width: 40, backgroundColor: 'red' }}>
-
-                                            <Text style={{ textAlign: 'center', fontSize: 30, fontWeight: 'bold' }}>
-                                                {dayjs(date).date()}
-                                            </Text>
-
-                                        </View>
-
-                                        <View style={{ height: 40, width: 70, backgroundColor: 'white', justifyContent: 'flex-start', alignContent: 'center' }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10 }}>
+                                                <Image
+                                                    source={require('./Image/clock.png')}
+                                                    style={{ width: 15, height: 15 }}
+                                                />
+                                                <Text style={styles.timeText}>
+                                                    { } {(task.time || '00:00').replace(':', '.')}
+                                                </Text>
+                                            </View>
 
                                             <View style={{
-                                                marginTop: 6, width: 70, height: 35, justifyContent: 'flex-start', flexDirection: 'column', backgroundColor: 'white'
+                                                flex: 1,
+                                                backgroundColor: '#fbfcfc',
+                                                padding: 10,
+                                                borderRadius: 15,
+                                                shadowColor: '#000',
+                                                shadowOpacity: 0.1,
+                                                shadowRadius: 4,
+                                                elevation: 2,
+                                                alignItems: 'center',
+                                                flexDirection: 'row',
+                                                //  backgroundColor: 'red',
                                             }}>
-                                                <Text style={{ fontSize: 14, color: dayColour[dayjs(date).day()], fontWeight: 'bold' }}>
-                                                    {dayjs(date).format('ddd')}
-                                                </Text>
-
-                                                <Text style={{ fontSize: 14, fontWeight: 'bold' }}>
-                                                    {months[dayjs(date).month()]} {dayjs(date).year()}
-                                                </Text>
-                                            </View>
-
-
-                                        </View>
-
-                                    </View>
-
-                                    {/* ScrollView แนวตั้งภายในแต่ละวัน */}
-                                    <ScrollView style={{ maxHeight: 200 }}>
-                                        {tasksForDate.map((task, index) => (
-                                            <View
-                                                key={index}
-                                                style={{
-                                                    flexDirection: 'row',
-                                                    alignItems: 'center',
-                                                    marginBottom: 8,
-                                                }}
-                                            >
-                                                {/* เวลาและไอคอน */}
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', width: 80 }}>
+                                                <Text style={{ fontSize: 14, }}>{task.name}</Text>
+                                                {task.category && categoryImages[task.category] && (
                                                     <Image
-                                                        source={require('./Image/clock.png')}
-                                                        style={{ width: 18, height: 18, marginRight: 4 }}
+                                                        source={categoryImages[task.category]}
+                                                        style={{ width: 35, height: 35, position: 'absolute', right: 5, }}
                                                     />
-                                                    <Text>{(task.time || '00:00').replace(':', '.')}</Text>
-                                                </View>
+                                                )}
 
-                                                {/* Task Name */}
-                                                <View
-                                                    style={{
-                                                        flex: 1,
-                                                        backgroundColor: '#DBE2EF',
-                                                        padding: 8,
-                                                        borderRadius: 6,
-                                                    }}
-                                                >
-                                                    <Text>{task.name}</Text>
-                                                </View>
+
                                             </View>
-                                        ))}
-                                    </ScrollView>
-                                </View>
-                            );
-                        })}
-                </ScrollView>
-            </Animated.View>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        );
+                    })}
+                </ScrollView >
+            </View>
+
         </View>
     );
 
@@ -259,8 +166,19 @@ export default function FavTaskScreen({ visible, onRequestClose }) {
 
 }
 
-
 const styles = StyleSheet.create({
+    scrollContainer: {
+        // flexGrow: 1,
+        // width: width,
+        // // marginLeft:10,
+        // height: height - 260,
+        // overflow: 'hidden',
+
+        paddingHorizontal: 10,
+        paddingBottom: 20,
+        paddingTop: 20,
+        // backgroundColor: 'red'
+    },
     dayContainer: {
         alignItems: 'center',
         marginVertical: 8,
@@ -309,7 +227,19 @@ const styles = StyleSheet.create({
         left: 50,
         backgroundColor: '#A6E3E9',
         // opacity:0.2,
-    }
+    },
+    dateText: {
+        textAlign: 'center',
+        fontSize: 15,
+        // fontWeight: 'bold',
+        marginBottom: 10,
+    },
+    timeText: {
+        width: 60,
+        fontSize: 14,
+        color: '#666',
+        fontWeight: 'bold'
+    },
 
 
 });

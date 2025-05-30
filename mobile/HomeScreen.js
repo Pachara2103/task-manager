@@ -1,19 +1,35 @@
 // HomeScreen.js
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { View, Animated, Text, Dimensions, StyleSheet, TouchableOpacity, Image, ScrollView, DeviceEventEmitter, Modal, TouchableWithoutFeedback } from 'react-native';
-import { CalendarList } from 'react-native-calendars';
+import { View, Animated, Text, Dimensions, StyleSheet, TouchableOpacity, Image, ScrollView, Alert } from 'react-native';
+import { Calendar } from 'react-native-calendars';
 import dayjs from 'dayjs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppContext } from './AppContext';
 import { useIsFocused } from '@react-navigation/native';
-
-
+import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 
 const { width, height } = Dimensions.get('window');
 const dayWidth = width / 7;
 
 export default function HomeScreen({ route, navigation }) {
-  // const { isBackFromAdd, dateBackFromAdd } = route.params || {};
+
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const dayColour = [
+    '#FF0B55', // Sunday 
+    '#F3C623', // Monday 
+    '#FF90BB', // Tuesday  
+    '#27ae60', // Wednesday
+    '#FF9B45', // Thursday
+    '#4ED7F1', // Friday
+    '#CB9DF0', // Saturday
+  ];
+  const renderRightActions = (idx) => (
+    <TouchableOpacity onPress={() => TaskToDelete(idx)}>
+      <View style={styles.rightAction}>
+        <Image source={require('./Image/delete.png')} style={{ width: 18, height: 18, marginTop: 10, marginLeft: 8 }} />
+      </View>
+    </TouchableOpacity>
+  );
 
   const {
     allTasks, setAllTasks,
@@ -24,46 +40,23 @@ export default function HomeScreen({ route, navigation }) {
     selectedDate, setSelectedDate,
     selectedTaskIndex, setSelectedTaskIndex,
 
-    isShowFav, setShowFav,
-    isLiked, setIsLiked,
-    isShowAllList, setShowAllList,
-    isShowFavTask, setShowFavTask,
-
     isFromCalendar, setFromCalendar,
-
     likedByDate, setLikedByDate,
+
   } = useContext(AppContext);
 
-  const [taskModalVisible, setTaskModalVisible] = useState(false);
-  const [taskModalData, setTaskModalData] = useState([]); // task array
-  const [modalDate, setModalDate] = useState('');
-
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-
   const TaskToDelete = async (selectedTaskIndex) => {
-    console.log('Call task to delete');
-
     const key = `tasks-${selectedDate}`;
     const saved = await AsyncStorage.getItem(key);
     let tasks = saved ? JSON.parse(saved) : [];
-    // console.log('new task before delete= ', tasks);
-
-    console.log('Deleting task at index:', selectedTaskIndex);
 
     setSelectedTaskIndex(selectedTaskIndex);
     const newTasks = tasks.filter((_, i) => i !== selectedTaskIndex);
     setTasks(newTasks);
-    setTaskModalData(newTasks);
-
-    // console.log('new task after delete= ', newTasks);
-
+    setNowTask(newTasks);
     await AsyncStorage.setItem(`tasks-${selectedDate}`, JSON.stringify(newTasks));
 
     const taskToDelete = tasks[selectedTaskIndex];
-
-    console.log('Deleting task name:', taskToDelete.name, ', Deleting task time', taskToDelete.time, ', date:', selectedDate);
-
-
     const savedAll = await AsyncStorage.getItem('allTasks');
     let allTasks = savedAll ? JSON.parse(savedAll) : [];
 
@@ -74,11 +67,8 @@ export default function HomeScreen({ route, navigation }) {
         t.date.trim() === selectedDate.trim()
       )
     );
-    console.log('All Tasks= ', allTasks);
     await AsyncStorage.setItem('allTasks', JSON.stringify(allTasks));
-
-    console.log('call DeviceEventEmitter');
-    DeviceEventEmitter.emit('reloadAllTasksScreen');
+    // setAllTask(allTasks);
 
     const savedFav = await AsyncStorage.getItem('allFavTask');
     let favList = savedFav ? JSON.parse(savedFav) : [];
@@ -90,8 +80,9 @@ export default function HomeScreen({ route, navigation }) {
     );
 
     await AsyncStorage.setItem('allFavTask', JSON.stringify(favList));
+    setAllFavTasks(favList);
 
-
+    // await AsyncStorage.setItem('allFavTask', JSON.stringify([]));
 
     if (newTasks.length === 0) {
       // ถ้าไม่มี task แล้ว ลบจาก taskDatesMap
@@ -99,9 +90,12 @@ export default function HomeScreen({ route, navigation }) {
       const dateColorMap = jsonMap ? JSON.parse(jsonMap) : {};
       delete dateColorMap[selectedDate];
       await AsyncStorage.setItem('taskDatesMap', JSON.stringify(dateColorMap));
+      loadMarkedDates();
     }
-    loadMarkedDates();
   }
+
+
+
   const loadMarkedDates = async () => {
     try {
       const jsonDatesMap = await AsyncStorage.getItem('taskDatesMap');
@@ -134,114 +128,20 @@ export default function HomeScreen({ route, navigation }) {
       console.log('Error loading marked dates:', e);
     }
   };
-  useEffect(() => {
-    const loadIsLiked = async () => {
-      const favKey = 'allFavTask';
-      const favSaved = await AsyncStorage.getItem(favKey);
-      let allFavTasks = favSaved ? JSON.parse(favSaved) : [];
-
-      const key = `tasks-${selectedDate}`;
-      const saved = await AsyncStorage.getItem(key);
-      const tasks = saved ? JSON.parse(saved) : [];
-
-      const makeKey = task => `${task.date}-${task.name}-${task.time}`;
-      const taskKeys = new Set(tasks.map(makeKey));
-      const favKeys = new Set(allFavTasks.map(makeKey));
-
-      let isAllInFav = true;
-      for (let key of taskKeys) {
-        if (!favKeys.has(key)) {
-          isAllInFav = false;
-          break;
-        }
-      }
-
-      setLikedByDate(prev => ({
-        ...prev,
-        [selectedDate]: isAllInFav
-      }));
-    };
-
-    // if (taskModalVisible) {
-    loadIsLiked();
-
-    // console.log('test system');
-    // console.log('isShowFavTask', isShowFavTask);
-  }, [taskModalVisible, selectedDate, isShowFavTask]);
 
   const isFocused = useIsFocused();
 
   useEffect(() => {
-    if (isFocused) {
-      loadMarkedDates();
-      // เริ่มอยู่นอกจอด้านบน
-      // Animated.timing(headerAnim, {
-      //   toValue: 0,          // เลื่อนลงมาที่ตำแหน่งเดิม
-      //   duration: 400,       // ความเร็วในการเลื่อน
-      //   useNativeDriver: true,
-      // }).start();
-      if (isFromCalendar) {
-        setFromCalendar(false);
-      }
-    }
+    const IfAdd = async () => {
+      const key = `tasks-${selectedDate}`;
+      const saved = await AsyncStorage.getItem(key);
+      let tasks = saved ? JSON.parse(saved) : [];
+      setNowTask(tasks);
+    };
+    IfAdd();
+    loadMarkedDates();
+
   }, [isFocused]);
-
-
-  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
-  const positionAnim = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
-
-  useEffect(() => {
-    if (isFromCalendar && isFocused) {
-      openModal(startPos.x, startPos.y, selectedDate);
-    }
-  }, [isFromCalendar && isFocused]);
-
-  const openModal = async (x, y, dateStr) => {
-    setModalDate(dateStr);
-    const tasksJson = await AsyncStorage.getItem(`tasks-${dateStr}`);
-    const tasks = tasksJson ? JSON.parse(tasksJson) : [];
-    setTaskModalData(tasks);
-
-    setStartPos({ x, y });
-    const ny = y + 50;
-    positionAnim.setValue({ x, y });
-    scaleAnim.setValue(0);
-
-    setTaskModalVisible(true);
-
-
-    Animated.parallel([
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(positionAnim, {
-        toValue: { x: width / 2 + 10, y: height / 2 + 10 },  // เคลื่อนที่ไปกลางจอ
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-
-  const closeModal = () => {
-    Animated.parallel([
-      Animated.timing(scaleAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(positionAnim, {
-        toValue: startPos,  // เคลื่อนกลับไปจุดที่กด
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setTaskModalVisible(false);
-    });
-  };
-
-
 
   useEffect(() => {
     const isLiked = likedByDate[selectedDate]; // ค่าของวันที่เปิดอยู่
@@ -257,10 +157,19 @@ export default function HomeScreen({ route, navigation }) {
       let allFavTasks = favSaved ? JSON.parse(favSaved) : [];
 
       const makeKey = task => `${task.date}-${task.name}-${task.time}`;
+      if (isLiked && tasks.length === 0) {
+        Alert.alert(`No task on this day`);
+
+        // เซต likedByDate[selectedDate] = false
+        setLikedByDate(prev => ({
+          ...prev,
+          [selectedDate]: false,
+        }));
+
+        return;
+      }
 
       if (isLiked) {
-        // console.log('Like!!!!!!!!!!!!!!!!!!!!!  date= ', selectedDate);
-        // console.log('tasks= ', tasks);
 
         const existingKeys = new Set(allFavTasks.map(makeKey));
         const merged = [...allFavTasks];
@@ -271,35 +180,69 @@ export default function HomeScreen({ route, navigation }) {
             merged.push(task);
           }
         });
+        merged.sort((a, b) => {
+          const dateDiff = dayjs(a.date).diff(dayjs(b.date));
+          if (dateDiff !== 0) return dateDiff;
+
+          const timeA = dayjs(`${a.date} ${a.time}`, 'YYYY-MM-DD HH:mm');
+          const timeB = dayjs(`${b.date} ${b.time}`, 'YYYY-MM-DD HH:mm');
+          const timeDiff = timeA.diff(timeB);
+          if (timeDiff !== 0) return timeDiff;
+
+          return a.name.localeCompare(b.name);
+        });
+
 
         await AsyncStorage.setItem(favKey, JSON.stringify(merged));
         setAllFavTasks(merged);
 
-        const a = await AsyncStorage.getItem(favKey);
-        let b = a ? JSON.parse(a) : [];
-        // console.log('allFavTask= ', b);
-
       } else {
-        // console.log('Like!!!!!!!!!!!!!!!!!!!!!  date= ', selectedDate);
-        // console.log('tasks= ', tasks);
+
         const removeKeys = new Set(tasks.map(makeKey));
         const filtered = allFavTasks.filter(task => !removeKeys.has(makeKey(task)));
 
         await AsyncStorage.setItem(favKey, JSON.stringify(filtered));
-
-        const a = await AsyncStorage.getItem(favKey);
-        let b = a ? JSON.parse(a) : [];
-        // console.log('allFavTask= ', b);
-
+        setAllFavTasks(filtered);
       }
     };
 
     handleLike();
-    // }, [likedByDate[selectedDate]]);
-  }, [likedByDate, selectedDate]);
+    console.log('checkkkkkkkkkkkkkkkkkkkkk');
 
+  }, [likedByDate]);
 
+  const categoryImages = {
+    exercise: require('./Image/category/exercise.png'),
+    dinner: require('./Image/category/eating.png'),
+    book: require('./Image/category/book.png'),
+    homework: require('./Image/category/homework.png'),
+    meeting: require('./Image/category/meeting.png'),
+    reminder: require('./Image/category/reminder.png'),
+    sleep: require('./Image/category/sleep.png'),
+  };
+  const scrollviewColour = ["#FAA0A0", "#FFF8DE", '#F7CFD8', '#DDF6D2', '#FFE8CD', '#D1E9F6', '#E5D9F2']
 
+  const [pressday, setPressDay] = useState(true);
+  const [nowtask, setNowTask] = useState([]);
+  const [isPast, setIsPast] = useState(false);
+  const [isTimePast, setIsTimePast] = useState(false);
+
+  useEffect(() => {
+    const setShowNowTask = async (selectedDate) => {
+      const key = `tasks-${selectedDate}`;
+      const saved = await AsyncStorage.getItem(key);
+      let tasks = saved ? JSON.parse(saved) : [];
+      setNowTask(tasks);
+      setIsPast(dayjs(selectedDate).isBefore(dayjs().format('YYYY-MM-DD'), 'day'));
+      const taskDateTime = dayjs(`${nowtask.date} ${nowtask.time}`, 'YYYY-MM-DD HH:mm');
+      setIsTimePast(taskDateTime.isBefore(dayjs()));
+
+      console.log('set now task leawwwwwwwwwwwwwww');
+      // console.log('now task=', nowtask);
+
+    }
+    setShowNowTask(selectedDate);
+  }, [selectedDate]);
 
   const renderDay = ({ date, state }) => {
     const isDisabled = state === 'disabled';
@@ -311,12 +254,12 @@ export default function HomeScreen({ route, navigation }) {
 
     return (
       <TouchableOpacity onPress={(event) => {
-        const { locationX, locationY, pageX, pageY } = event.nativeEvent;
-        const dateStr = dayjs(date.dateString).format('YYYY-MM-DD');
-        openModal(pageX, pageY, dateStr);
+
         setSelectedDate(dayjs(date.dateString).format('YYYY-MM-DD')); ///set seletedDate
+        setPressDay(true);
 
         console.log('press day leawwwwwwwwww');
+
       }} style={[styles.dayContainer, { width: dayWidth }]}>
         <View style={[
           styles.dayBox,
@@ -342,268 +285,252 @@ export default function HomeScreen({ route, navigation }) {
   };
 
   return (
+    <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
 
-    <View style={{
-      height: height - 120,
-      backgroundColor: 'white',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      paddingRight: 50,
+      <View style={{ width: width, height: 80, backgroundColor: '#F8FAFC', flexDirection: 'column', position: 'absolute', top: 50 }}>
 
-      borderRadius: 40,         // ขอบโค้ง
-      overflow: 'hidden',       // ต้องมี เพื่อให้ตัดขอบลูก
-      marginHorizontal: 10,     // เผื่อเว้นขอบไม่ติดจอ
-      marginVertical: 10,  
-      elevation: 5,             // เงาสำหรับ Android
-      shadowColor: '#000',      // เงาสำหรับ iOS
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 4,
-    }}>
-      {/* <View
-        style={{
-          width: width,
-          height: 100,
-          marginTop:80,
-          backgroundColor: '#DBE2EF',
-        }}
-      >
-        <Text style={{
-          textAlign: 'center',
-          marginTop: 62.5,
-          fontSize: 18,
-        }}>
-          CALENDAR
-        </Text>
-      </View> */}
+        <View style={{ justifyContent: 'flex-start', height: 40, width: 150 }}>
+          <Text style={{ textAlign: 'left', fontSize: 30, fontWeight: 'bold', marginLeft: 15 }}>
+            Calendar
+          </Text>
 
-      <CalendarList
-        current={dayjs().format('YYYY-MM-DD')} // เดือนปัจจุบัน
-        pastScrollRange={120}  // ย้อนหลัง 10 ปี
-        futureScrollRange={120} // ล่วงหน้า 10 ปี
-        scrollEnabled={true}
-        horizontal={false} // แนวตั้ง
-        pagingEnabled={false}
-        showScrollIndicator={true}
-        hideArrows={true} // ไม่แสดงลูกศร
-        hideExtraDays={true}
+        </View>
+
+        <View style={{ height: 30, width: 200, justifyContent: 'flex-start', marginLeft: 15 }}>
+          <Text style={{ fontSize: 15 }}>
+            {dayjs().format('dddd')},  {dayjs().date()} {months[dayjs().month()]} {dayjs().year()}
+          </Text>
+
+        </View>
+
+        <Image
+          source={require('./Image/profile.png')}
+          style={{ width: 42, height: 42, position: 'absolute', right: 20, top: 15 }}
+        />
+      </View>
+
+      <Calendar
+        current={dayjs().format('YYYY-MM-DD')}
+        // hideArrows={true} // ไม่แสดงลูกศร
+        // hideExtraDays={true}
         dayComponent={renderDay}
         markedDates={markedDates}
-        hideDayNames={true}
+        // hideDayNames={true}
 
         renderHeader={(date) => {
           const month = dayjs(date).format('MMMM YYYY');
           return (
             <View style={{
-              width: width,
-              height: 80,
-              paddingBottom: 10,
-              paddingRight: 20,
-              flexDirection: 'column',
+              width: width - 250,
+              height: 30,
               justifyContent: 'center',
               alignItems: 'center',
               // backgroundColor: 'red',
-              position: "absolutes",
-              top: 10,
-              right: 30
 
             }}>
-              <View style={{
-                height: 2,
-                width: width - 40,
-                backgroundColor: '#ccc',
-                position: 'absolute',
-                right:25,
-                bottom: 80,
-                opacity: 0.2,
-              }} />
-              <Text style={[
-                styles.monthHeader, {
+              <Text style={{
+                fontSize: 15,
+                fontWeight: 'bold',
+                textAlign: 'center',
+                color: '#ccc',
+              }}>{month}</Text>
 
-                }]}>{month}</Text>
-
-              <View style={{
-                width: width - 40,
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginVertical: 5,
-                backgroundColor: 'green',
-                marginLeft: 20,
-                gap: 21.5
-              }}>
-
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
-
-                  <View key={index} style={styles.dayBox}>
-                    <Text style={{ position: 'absolute', bottom: 0, fontSize: 12, fontWeight: 'bold' }} >
-                      {day}
-                    </Text>
-
-                  </View>
-                ))}
-              </View>
             </View>
-
-
           );
         }}
 
         theme={{
           textSectionTitleColor: 'black',
           textDayHeaderFontWeight: 'bold',
-
           todayTextColor: '#00adf5',
           monthTextColor: '#333',
           textMonthFontWeight: 'bold',
 
         }}
-        style={{ width }}
+        style={{ width: width, marginTop: 125, borderRadius: 20, height: 320 }}
       />
-
-      < Modal
-        transparent={true}
-        visible={taskModalVisible}
-        onRequestClose={closeModal}
-      >
-        <TouchableWithoutFeedback onPress={closeModal}>
-          <View style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'center',
-            alignItems: 'center',
+      {pressday &&
+        <View>
+          <Text style={{
+            textAlign: 'center',
+            fontSize: 15,
+            marginBottom: 10,
           }}>
-            <TouchableWithoutFeedback onPress={() => { }}>
-              <Animated.View style={{
-                backgroundColor: 'white',
-                borderRadius: 10,
-                padding: 15,
 
-                position: 'absolute',
-                width: width / 2 + 140,
-                height: height / 2 - 100,
-                backgroundColor: 'white',
-                borderRadius: 10,
-                transform: [
-                  { translateX: positionAnim.x },
-                  { translateY: positionAnim.y },
-                  { scale: scaleAnim },
-                ],
-                marginLeft: -820 / 2,
-                marginTop: -1680 / 2,
+            <Text style={{ fontSize: 20, fontWeight: 'bold' }}>{dayjs(selectedDate).date()} {months[dayjs(selectedDate).month()]}</Text>
 
-              }}>
+          </Text>
 
-                <TouchableOpacity
-                  onPress={() => {
-                    setLikedByDate(prev => ({
-                      ...prev,
-                      [selectedDate]: !prev[selectedDate]
-                    }));
-                  }}>
+          <Text style={{ opacity: 0.6, fontSize: 12, fontFamily: 'lucida grande', color: dayColour[dayjs(selectedDate).day()], fontWeight: 'bold', position: 'absolute', top: 20, left: 185 }}>
+            {dayjs(selectedDate).format('ddd')}
 
-                  <Image
-                    source={
-                      likedByDate[selectedDate]
-                        ? require('./Image/fullheart.png')
-                        : require('./Image/noheart.png')
-                    }
-                    style={{ width: 30, height: 30, position: 'absolute', top: 0, right: 0 }}
-                  />
-                </TouchableOpacity>
+          </Text>
+
+          <TouchableOpacity onPress={() => {
+            setLikedByDate(prev => ({
+              ...prev,
+              [selectedDate]: !prev[selectedDate]
+            }));
+            console.log('likedbydate=', likedByDate);
+          }}
+
+            style={{ position: 'absolute', top: 2, right: 110 }} >
+            <Image
+              source={
+                likedByDate[selectedDate] ?
+                  require('./Image/fullheart2.png') :
+                  require('./Image/noheart.png')
+              }
+
+              style={{ width: 30, height: 30 }}
+            />
+          </TouchableOpacity>
+
+        </View>
+      }
+
+      {pressday &&
+        <GestureHandlerRootView >
+          <View style={{
+            width: width,
+            height: 260,
+            // backgroundColor: '#DDF6D2',
+            backgroundColor: scrollviewColour[dayjs(selectedDate).day()],
+            // opacity: dayjs(selectedDate).day() == 0 ? 0.5 : 1,
+            borderRadius: 40
+          }}>
+
+            <ScrollView contentContainerStyle={{
+              paddingHorizontal: 10,
+            }}>
+
+              <View style={[styles.dayContainer, isPast && { opacity: 0.5 }]}>
 
 
-                <Text style={{
-                  fontSize: 18,
-                  fontWeight: 'bold',
-                  textAlign: 'center',
-                  marginBottom: 10,
-                }}>{modalDate}</Text>
-
-                <ScrollView style={{ backgroundColor: 'pink', marginBottom: 30 }}>
-                  {taskModalData.length === 0 ? (
-                    <Text style={{ fontSize: 20, fontWeight: 'thin', textAlign: 'center', justifyContent: 'center', marginTop: 100 }}>No Task Yet</Text>
-                  ) : (
-                    taskModalData.map((task, index) => (
-                      <View key={index} style={{
+                {nowtask.map((task, idx) => {
+                  return (
+                    <Swipeable key={idx} renderRightActions={() => renderRightActions(idx)}>
+                      <View style={{
                         flexDirection: 'row',
                         alignItems: 'center',
-                        marginVertical: 6,
+                        marginBottom: 8,
+                        opacity: isTimePast ? 0.5 : 1,
+                        // backgroundColor: 'red',
+                        width: width - 25,
                       }}>
-
-                        <Image
-                          source={require('./Image/clock.png')}
-                          style={{ width: 20, height: 20, marginRight: 5 }}
-                        />
-                        <Text style={{ width: 50 }}>{(task.time || '00:00').replace(':', '.')}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10 }}>
+                          <Image
+                            source={require('./Image/clock.png')}
+                            style={{ width: 15, height: 15 }}
+                          />
+                          <Text style={styles.timeText}>
+                            { } {(task.time || '00:00').replace(':', '.')}
+                          </Text>
+                        </View>
 
                         <View style={{
                           flex: 1,
-                          padding: 8,
-                          backgroundColor: '#DBE2EF',
-                          borderRadius: 6,
+                          backgroundColor: '#fbfcfc',
+                          padding: 10,
+                          borderRadius: 15,
+                          shadowColor: '#000',
+                          shadowOpacity: 0.1,
+                          shadowRadius: 4,
+                          elevation: 2,
+                          alignItems: 'left',
+                          flexDirection: 'colum',
+
+                          // gapcolum:5,
+                          // backgroundColor: 'red',
                         }}>
-                          <Text>{task.name}</Text>
+                          <Text style={{ fontSize: 14, }}>{task.name}</Text>
+                          {task.category && categoryImages[task.category] && (
+                            <Image
+                              source={categoryImages[task.category]}
+                              style={{ width: 35, height: 35, position: 'absolute', right: 5, }}
+                            />
+                          )}
+
+                          {task.category === 'homework' && (
+                            <View style={{ flexDirection: 'row', gap: 5 }}>
+                              <Image
+                                source={require("./Image/deadline.png")}
+                                style={{ width: 12, height: 12 }}
+                              />
+
+                              <Text style={{ fontSize: 12, }}>deadline {dayjs(task.deadline).format('DD MMM YYYY')}</Text>
+
+
+
+                            </View>
+
+                          )}
+                          {task.category === 'homework' && (
+                            <Text style={{ fontSize: 14, color: Math.max(dayjs(task.deadline).diff(dayjs(), 'day'), 0) < 7 ? "red" : 'green' }}>
+                              {Math.max(dayjs(task.deadline).diff(dayjs(), 'day'), 0)} day left
+                            </Text>
+                          )}
+
+
+
                         </View>
 
-                        <TouchableOpacity onPress={() => {
-                          TaskToDelete(index);
-                        }}>
-                          <Image
-                            source={require('./Image/delete.png')}
-                            style={{ width: 20, height: 20, marginLeft: 8 }}
-                          />
-
-                        </TouchableOpacity>
                       </View>
-                    ))
-                  )}
+                    </Swipeable>
 
-                </ScrollView>
+                  );
+                })}
 
-                <View style={{
-                  position: 'absolute',
-                  bottom: 10, // ระยะห่างจากล่างสุด (ปรับได้)
-                  left: 0,
-                  right: 0,
-                  alignItems: 'center',
-                }}>
+              </View>
 
-                  <TouchableOpacity onPress={(event) => {
-                    //ไปยังหน้า add กด add เสร็มกลับมาหน้า home ที่โช modal ไว้
-                    setFromCalendar(true);
-                    navigation.navigate('ADD', {
-                      isFromCalendar: true,
-                      dateFromCalendar: selectedDate,
-                    });
-                    closeModal();
-                    // console.log('dateFromCalendar', selectedDate);
-                  }}>
 
-                    <Image
-                      source={require('./Image/add.png')}
-                      style={{ width: 35, height: 35, marginRight: 5 }}
-                    />
-                  </TouchableOpacity>
 
-                </View>
-              </Animated.View>
-            </TouchableWithoutFeedback>
+
+            </ScrollView >
+
+            <TouchableOpacity onPress={() => {
+              setFromCalendar(true);
+              navigation.navigate('ADD', {
+                // isFromCalendar: true,
+              });
+
+              // console.log('set from calendar')
+            }}
+
+              style={{ position: 'absolute', bottom: 10, right: 175 }} >
+              <Image
+                source={
+                  require('./Image/add.png')
+                }
+                style={{ width: 30, height: 30 }}
+              />
+            </TouchableOpacity>
+
           </View>
-        </TouchableWithoutFeedback >
-      </Modal >
-
-
+        </GestureHandlerRootView>
+      }
 
     </View >
   );
 }
 
 const styles = StyleSheet.create({
+  dateText: {
+    textAlign: 'center',
+    fontSize: 15,
+    marginBottom: 10,
+  },
+
+  timeText: {
+    width: 60,
+    fontSize: 14,
+    color: '#666',
+    fontWeight: 'bold'
+  },
+
   dayContainer: {
     alignItems: 'center',
-    marginVertical: 5,
-    backgroundColor: 'blue',
-    marginRight: 20,
+    marginVertical: 2,
 
   },
   ImageContainer: {
@@ -614,7 +541,7 @@ const styles = StyleSheet.create({
   dayBox: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'pink',
+    // backgroundColor: 'pink',
     width: 30, height: 30
 
   },
@@ -629,39 +556,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#00adf5',
   },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 4,
-    marginTop: 1,
-    alignSelf: 'center',
-  },
-  dotDisable: {
-    width: 6,
-    height: 6,
-    borderRadius: 4,
-    marginTop: 1,
-    alignSelf: 'center',
-    opacity: 0.2,
-  },
-
-  ImageTitle: {
-    position: 'absolute',
-    height: 50,
-    width: width,
-    top: 0,
-    left: 50,
-    backgroundColor: '#A6E3E9',
-    // opacity:0.2,
-  },
-  monthHeader: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    paddingTop: 10,
-    color: '#ccc',
-  },
-
-
 
 });

@@ -6,5 +6,10 @@ module.exports = function (api) {
        { jsxImportSource: "nativewind" }],
       "nativewind/babel",
     ],
+     plugins: [
+      // 👇 ใส่ plugin ตัวอื่นก่อนถ้ามี (เช่น nativewind)
+      "react-native-reanimated/plugin", // 👈 ต้องอยู่ล่างสุดเสมอ
+    ],
+
   };
 };
