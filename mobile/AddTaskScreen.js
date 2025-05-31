@@ -125,8 +125,8 @@ export default function AddTaskScreen({ route, navigation }) {
       handleConfirm(dateObj);
       setPickedDate(dateObj);
       setFromCalendar(false);
-    }else{
-       setTaskName('');
+    } else {
+      setTaskName('');
     }
 
   }, [isFocused]);
@@ -146,7 +146,7 @@ export default function AddTaskScreen({ route, navigation }) {
       time: `${time.hour}:${time.min}`,
       date: selectedDate,
       category: category,
-      ...(category === 'homework' && { deadline: deadlineDate }) 
+      ...(category === 'homework' && { deadline: deadlineDate })
     };
 
 
@@ -315,6 +315,13 @@ export default function AddTaskScreen({ route, navigation }) {
             {dayjs().format('dddd')},  {dayjs().date()} {months[dayjs().month()]} {dayjs().year()}
           </Text>
 
+        </View>
+
+        <View style={{ position: 'absolute', right: 20, top: 90, borderRadius: 40, width: 50, height: 50, backgroundColor: 'white' }}>
+          <Image
+            source={require('./Image/cat.png')}
+            style={{ width: 40, height: 40, marginLeft: 7., marginTop: 3 }}
+          />
         </View>
 
       </View>

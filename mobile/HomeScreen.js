@@ -52,7 +52,7 @@ export default function HomeScreen({ route, navigation }) {
 
     setSelectedTaskIndex(selectedTaskIndex);
     const newTasks = tasks.filter((_, i) => i !== selectedTaskIndex);
-    setTasks(newTasks);
+    // setTasks(newTasks);
     setNowTask(newTasks);
     await AsyncStorage.setItem(`tasks-${selectedDate}`, JSON.stringify(newTasks));
 
@@ -286,28 +286,40 @@ export default function HomeScreen({ route, navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+      <View style={{
+        width: width,
+        height: 160,
+        flexDirection: 'column',
+        backgroundColor: '#DBE2EF',
+        // marginBottom:5
 
-      <View style={{ width: width, height: 80, backgroundColor: '#F8FAFC', flexDirection: 'column', position: 'absolute', top: 50 }}>
+      }}>
 
-        <View style={{ justifyContent: 'flex-start', height: 40, width: 150 }}>
-          <Text style={{ textAlign: 'left', fontSize: 30, fontWeight: 'bold', marginLeft: 15 }}>
-            Calendar
+        <View style={{ justifyContent: 'flex-start', marginTop: 80, height: 40, width: width }}>
+          <Text style={{ textAlign: 'left', fontSize: 30, fontWeight: 'bold', marginLeft: 10 }}>
+            CALENDAR
           </Text>
 
         </View>
 
-        <View style={{ height: 30, width: 200, justifyContent: 'flex-start', marginLeft: 15 }}>
+        <View style={{ height: 30, width: width - 20, justifyContent: 'flex-start', marginLeft: 10 }}>
           <Text style={{ fontSize: 15 }}>
             {dayjs().format('dddd')},  {dayjs().date()} {months[dayjs().month()]} {dayjs().year()}
           </Text>
 
+
         </View>
 
-        <Image
-          source={require('./Image/profile.png')}
-          style={{ width: 42, height: 42, position: 'absolute', right: 20, top: 15 }}
-        />
+        <View style={{  position: 'absolute', right: 20, top: 90, borderRadius:40, width: 50, height: 50, backgroundColor:'white' }}>
+          <Image
+            source={require('./Image/cat.png')}
+            style={{ width: 40, height: 40, marginLeft:7.,marginTop:3 }}
+          />
+        </View>
+
+
       </View>
+
 
       <Calendar
         current={dayjs().format('YYYY-MM-DD')}
@@ -347,7 +359,7 @@ export default function HomeScreen({ route, navigation }) {
           textMonthFontWeight: 'bold',
 
         }}
-        style={{ width: width, marginTop: 125, borderRadius: 20, height: 320 }}
+        style={{ width: width, borderRadius: 20, height: 290 }}
       />
       {pressday &&
         <View>
@@ -406,80 +418,85 @@ export default function HomeScreen({ route, navigation }) {
 
               <View style={[styles.dayContainer, isPast && { opacity: 0.5 }]}>
 
-
-                {nowtask.map((task, idx) => {
-                  return (
-                    <Swipeable key={idx} renderRightActions={() => renderRightActions(idx)}>
-                      <View style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        marginBottom: 8,
-                        opacity: isTimePast ? 0.5 : 1,
-                        // backgroundColor: 'red',
-                        width: width - 25,
-                      }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10 }}>
-                          <Image
-                            source={require('./Image/clock.png')}
-                            style={{ width: 15, height: 15 }}
-                          />
-                          <Text style={styles.timeText}>
-                            { } {(task.time || '00:00').replace(':', '.')}
-                          </Text>
-                        </View>
-
+                {nowtask.length === 0 ? (
+                  <View style={{ alignItems: 'center', marginTop: 100 }}>
+                    <Text style={{ fontSize: 20, color: 'gray' }}>No task on this day</Text>
+                  </View>
+                ) : (
+                  nowtask.map((task, idx) => {
+                    return (
+                      <Swipeable key={idx} renderRightActions={() => renderRightActions(idx)}>
                         <View style={{
-                          flex: 1,
-                          backgroundColor: '#fbfcfc',
-                          padding: 10,
-                          borderRadius: 15,
-                          shadowColor: '#000',
-                          shadowOpacity: 0.1,
-                          shadowRadius: 4,
-                          elevation: 2,
-                          alignItems: 'left',
-                          flexDirection: 'colum',
-
-                          // gapcolum:5,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          marginBottom: 8,
+                          opacity: isTimePast ? 0.5 : 1,
                           // backgroundColor: 'red',
+                          width: width - 25,
                         }}>
-                          <Text style={{ fontSize: 14, }}>{task.name}</Text>
-                          {task.category && categoryImages[task.category] && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10 }}>
                             <Image
-                              source={categoryImages[task.category]}
-                              style={{ width: 35, height: 35, position: 'absolute', right: 5, }}
+                              source={require('./Image/clock.png')}
+                              style={{ width: 15, height: 15 }}
                             />
-                          )}
-
-                          {task.category === 'homework' && (
-                            <View style={{ flexDirection: 'row', gap: 5 }}>
-                              <Image
-                                source={require("./Image/deadline.png")}
-                                style={{ width: 12, height: 12 }}
-                              />
-
-                              <Text style={{ fontSize: 12, }}>deadline {dayjs(task.deadline).format('DD MMM YYYY')}</Text>
-
-
-
-                            </View>
-
-                          )}
-                          {task.category === 'homework' && (
-                            <Text style={{ fontSize: 14, color: Math.max(dayjs(task.deadline).diff(dayjs(), 'day'), 0) < 7 ? "red" : 'green' }}>
-                              {Math.max(dayjs(task.deadline).diff(dayjs(), 'day'), 0)} day left
+                            <Text style={styles.timeText}>
+                              { } {(task.time || '00:00').replace(':', '.')}
                             </Text>
-                          )}
+                          </View>
+
+                          <View style={{
+                            flex: 1,
+                            backgroundColor: '#fbfcfc',
+                            padding: 10,
+                            borderRadius: 15,
+                            shadowColor: '#000',
+                            shadowOpacity: 0.1,
+                            shadowRadius: 4,
+                            elevation: 2,
+                            alignItems: 'left',
+                            flexDirection: 'colum',
+
+                            // gapcolum:5,
+                            // backgroundColor: 'red',
+                          }}>
+                            <Text style={{ fontSize: 14, }}>{task.name}</Text>
+                            {task.category && categoryImages[task.category] && (
+                              <Image
+                                source={categoryImages[task.category]}
+                                style={{ width: 35, height: 35, position: 'absolute', right: 5, }}
+                              />
+                            )}
+
+                            {task.category === 'homework' && (
+                              <View style={{ flexDirection: 'row', gap: 5 }}>
+                                <Image
+                                  source={require("./Image/deadline.png")}
+                                  style={{ width: 12, height: 12 }}
+                                />
+
+                                <Text style={{ fontSize: 12, }}>deadline {dayjs(task.deadline).format('DD MMM YYYY')}</Text>
 
 
+
+                              </View>
+
+                            )}
+                            {task.category === 'homework' && (
+                              <Text style={{ fontSize: 14, color: Math.max(dayjs(task.deadline).diff(dayjs(), 'day'), 0) < 7 ? "red" : 'green' }}>
+                                {Math.max(dayjs(task.deadline).diff(dayjs(), 'day'), 0)} day left
+                              </Text>
+                            )}
+
+
+
+                          </View>
 
                         </View>
+                      </Swipeable>
 
-                      </View>
-                    </Swipeable>
-
-                  );
-                })}
+                    );
+                  })
+                )}
 
               </View>
 
@@ -530,7 +547,8 @@ const styles = StyleSheet.create({
 
   dayContainer: {
     alignItems: 'center',
-    marginVertical: 2,
+    // marginVertical: 2,
+    //  backgroundColor: 'pink',
 
   },
   ImageContainer: {

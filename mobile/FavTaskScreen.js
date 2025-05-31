@@ -1,8 +1,12 @@
-import React, { useState, useEffect, useContext} from 'react';
-import { View, Text, Dimensions, StyleSheet, Animated, Image, ScrollView, TouchableOpacity, TouchableWithoutFeedback, Alert } from 'react-native';
+import React, { useState, useEffect, useContext } from 'react';
+import { View, Text, Dimensions, StyleSheet, Image, ScrollView, TouchableOpacity, TouchableWithoutFeedback, Alert } from 'react-native';
 import dayjs from 'dayjs';
 import { AppContext } from './AppContext';
 import { useIsFocused } from '@react-navigation/native';  // ⬅️ นำเข้า hook นี้
+import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+
 
 
 const { width, height } = Dimensions.get('window');
@@ -10,7 +14,7 @@ const { width, height } = Dimensions.get('window');
 export default function FavTaskScreen({ navigation }) {
     const isFocused = useIsFocused();
     // if (!isFocused) return null;
-    
+
 
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const dayColour = [
@@ -24,8 +28,18 @@ export default function FavTaskScreen({ navigation }) {
     ];
 
     const {
+        allTasks, setAllTasks,
         allFavTasks, setAllFavTasks,
+        tasks, setTasks,
+
+        markedDates, setMarkedDates,
+        selectedDate, setSelectedDate,
+        selectedTaskIndex, setSelectedTaskIndex,
+
+        isFromCalendar, setFromCalendar,
+        likedByDate, setLikedByDate,
     } = useContext(AppContext);
+    const [tasktounliked, setTaskToUnliked] = useState(dayjs(selectedDate).format('YYYY-MM-DD'));
 
     const categoryImages = {
         exercise: require('./Image/category/exercise.png'),
@@ -50,7 +64,77 @@ export default function FavTaskScreen({ navigation }) {
 
     }
 
-    const groupedTasks  = groupTasksByDate(allFavTasks);
+    const groupedTasks = groupTasksByDate(allFavTasks);
+
+    const renderRightActions = (idx, date) => (
+        // console.log('call render right');
+        <TouchableOpacity onPress={() => { TaskToDelete(idx, date); }}>
+            <View style={styles.rightAction}>
+                <Image source={require('./Image/delete.png')} style={{ width: 18, height: 18, marginTop: 10, marginLeft: 8 }} />
+            </View>
+        </TouchableOpacity>
+    );
+    const TaskToDelete = async (selectedTaskIndex, tasktodeletedate) => {
+        // console.log('select index= ', selectedTaskIndex);
+        const key = `tasks-${tasktodeletedate}`;
+        const saved = await AsyncStorage.getItem(key);
+        let tasks = saved ? JSON.parse(saved) : [];
+
+        setSelectedTaskIndex(selectedTaskIndex);
+        const newTasks = tasks.filter((_, i) => i !== selectedTaskIndex);
+        // setTasks(newTasks);
+        // setNowTask(newTasks);
+        await AsyncStorage.setItem(`tasks-${tasktodeletedate}`, JSON.stringify(newTasks));
+
+        const taskToDelete = tasks[selectedTaskIndex];
+        const savedAll = await AsyncStorage.getItem('allTasks');
+        let allTasks = savedAll ? JSON.parse(savedAll) : [];
+
+        allTasks = allTasks.filter(t =>
+            !(
+                t.name.trim() === taskToDelete.name.trim() &&
+                t.time.trim() === taskToDelete.time.trim() &&
+                t.date.trim() === tasktodeletedate.trim()
+            )
+        );
+        await AsyncStorage.setItem('allTasks', JSON.stringify(allTasks));
+        // setAllTasks(allTasks);
+
+        const savedFav = await AsyncStorage.getItem('allFavTask');
+        let favList = savedFav ? JSON.parse(savedFav) : [];
+
+        favList = favList.filter(t =>
+            !(t.name === taskToDelete.name &&
+                t.time === taskToDelete.time &&
+                t.date === tasktodeletedate)
+        );
+
+        await AsyncStorage.setItem('allFavTask', JSON.stringify(favList));
+        setAllFavTasks(favList);
+
+        // await AsyncStorage.setItem('allFavTask', JSON.stringify([]));
+
+        if (newTasks.length === 0) {
+            // ถ้าไม่มี task แล้ว ลบจาก taskDatesMap
+            const jsonMap = await AsyncStorage.getItem('taskDatesMap');
+            const dateColorMap = jsonMap ? JSON.parse(jsonMap) : {};
+            delete dateColorMap[tasktodeletedate];
+            await AsyncStorage.setItem('taskDatesMap', JSON.stringify(dateColorMap));
+            // loadMarkedDates();
+        }
+        // handleShowAllTasks();
+    }
+    const UnlikedAllTasksForDate = async (date) => {
+        const savedFav = await AsyncStorage.getItem('allFavTask');
+        let favList = savedFav ? JSON.parse(savedFav) : [];
+
+        favList = favList.filter(task => task.date !== date);
+
+        await AsyncStorage.setItem('allFavTask', JSON.stringify(favList));
+        setAllFavTasks(favList);
+    };
+
+
 
     return (
         <View style={{ flex: 1 }} >
@@ -73,91 +157,154 @@ export default function FavTaskScreen({ navigation }) {
                     <Text style={{ fontSize: 15 }}>
                         {dayjs().format('dddd')},  {dayjs().date()} {months[dayjs().month()]} {dayjs().year()}
                     </Text>
-                    
+
+                </View>
+                <View style={{ position: 'absolute', right: 20, top: 90, borderRadius: 40, width: 50, height: 50, backgroundColor: 'white' }}>
+                    <Image
+                        source={require('./Image/cat.png')}
+                        style={{ width: 40, height: 40, marginLeft: 7., marginTop: 3 }}
+                    />
                 </View>
 
             </View>
 
-            <View style={{
-                height: height - 260,
+            <GestureHandlerRootView >
 
-            }}>
+                <View style={{
+                    height: height - 260,
 
-                <ScrollView contentContainerStyle={styles.scrollContainer}>
-                    {groupedTasks.map((group, index) => {
-                        const isPast = dayjs(group.date, 'YYYY-MM-DD').isBefore(dayjs().format('YYYY-MM-DD'), 'day');
+                }}>
 
-                        return (
-                            <View key={index} style={[styles.dayContainer, isPast && { opacity: 0.5 }]}>
+                    <ScrollView contentContainerStyle={styles.scrollContainer}>
 
-                                <Text style={styles.dateText}>
-                                    <Text style={{ color: dayColour[dayjs(group.date).day()], opacity: 0.5 }}>━━━━━  </Text>
-                                    <Text style={{ fontSize: 20, fontWeight: 'bold' }}>{dayjs(group.date).date()} {months[dayjs(group.date).month()]}</Text>
-
-                                    <Text style={{ color: dayColour[dayjs(group.date).day()], opacity: 0.5 }}> ━━━━━</Text>
-                                </Text>
-
-                                <Text style={{ opacity: 0.6, fontSize: 12, color: dayColour[dayjs(group.date).day()], fontWeight: 'bold', position: 'absolute', top: 20, left: width / 2 - 25 }}>
-                                    {dayjs(group.date).format('ddd')}
-                                </Text>
-
-
-
-                                {group.tasks.map((task, idx) => {
-                                    const taskDateTime = dayjs(`${group.date} ${task.time}`, 'YYYY-MM-DD HH:mm');
-                                    const isTimePast = taskDateTime.isBefore(dayjs());
-                                    // setTaskImage(task)
-                                    // setRequireImage(true) 
-
-                                    return (
-                                        <View key={idx} style={{
-                                            flexDirection: 'row',
-                                            alignItems: 'center',
-                                            marginBottom: 8,
-                                            opacity: isTimePast ? 0.5 : 1,
-                                            // backgroundColor: 'pink'
-                                        }}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10 }}>
-                                                <Image
-                                                    source={require('./Image/clock.png')}
-                                                    style={{ width: 15, height: 15 }}
-                                                />
-                                                <Text style={styles.timeText}>
-                                                    { } {(task.time || '00:00').replace(':', '.')}
-                                                </Text>
-                                            </View>
-
-                                            <View style={{
-                                                flex: 1,
-                                                backgroundColor: '#fbfcfc',
-                                                padding: 10,
-                                                borderRadius: 15,
-                                                shadowColor: '#000',
-                                                shadowOpacity: 0.1,
-                                                shadowRadius: 4,
-                                                elevation: 2,
-                                                alignItems: 'center',
-                                                flexDirection: 'row',
-                                                //  backgroundColor: 'red',
-                                            }}>
-                                                <Text style={{ fontSize: 14, }}>{task.name}</Text>
-                                                {task.category && categoryImages[task.category] && (
-                                                    <Image
-                                                        source={categoryImages[task.category]}
-                                                        style={{ width: 35, height: 35, position: 'absolute', right: 5, }}
-                                                    />
-                                                )}
-
-
-                                            </View>
-                                        </View>
-                                    );
-                                })}
+                        {groupedTasks.length === 0 ? (
+                            <View style={{ alignItems: 'center', marginTop: height / 4 }}>
+                                <Text style={{ fontSize: 30, color: 'gray' }}>NO FAV TASK YET</Text>
                             </View>
-                        );
-                    })}
-                </ScrollView >
-            </View>
+                        ) : (
+
+                            groupedTasks.map((group, index) => {
+                                const isPast = dayjs(group.date, 'YYYY-MM-DD').isBefore(dayjs().format('YYYY-MM-DD'), 'day');
+
+                                return (
+                                    <View key={index} style={[styles.dayContainer, isPast && { opacity: 0.5 }]}>
+
+                                        <Text style={styles.dateText}>
+                                            <Text style={{ fontSize: 20, fontWeight: 'bold' }}>{dayjs(group.date).date()} {months[dayjs(group.date).month()]}</Text>
+
+                                        </Text>
+
+                                        <Text style={{ opacity: 0.6, fontSize: 12, color: dayColour[dayjs(group.date).day()], fontWeight: 'bold', position: 'absolute', top: 20, left: width / 2 - 25 }}>
+                                            {dayjs(group.date).format('ddd')}
+                                        </Text>
+                                        <TouchableOpacity onPress={() => {
+                                            setTaskToUnliked(dayjs(group.date).format('YYYY-MM-DD'));
+                                            console.log('likedbydate before=', likedByDate);
+                                            console.log('date to unliked=', dayjs(group.date).format('YYYY-MM-DD'));
+                                            Alert.alert(
+                                                "ยืนยันการลบ",
+                                                "คุณต้องการลบรายการที่ถูกใจหรือไม่?",
+                                                [
+                                                    {
+                                                        text: "Cancel",
+                                                        onPress: () => console.log("ยกเลิก"),
+                                                        style: "cancel"
+                                                    },
+                                                    {
+                                                        text: "Delete",
+                                                        onPress: () => {
+                                                            setLikedByDate(prev => ({
+                                                                ...prev,
+                                                                [dayjs(group.date).format('YYYY-MM-DD')]: false,
+                                                            }));
+
+                                                            UnlikedAllTasksForDate(dayjs(group.date).format('YYYY-MM-DD'));
+
+
+                                                        },
+                                                        style: "destructive"  // สีแดงใน iOS, Android บางรุ่นก็รองรับ
+                                                    }
+                                                ],
+                                                { cancelable: true }
+                                            );
+                                        }}
+                                            style={{ position: 'absolute', right: 110 }}
+                                        >
+                                            <Image
+                                                source={
+                                                    require('./Image/fullheart2.png')
+                                                }
+
+                                                style={{ width: 30, height: 30 }}
+                                            />
+                                        </TouchableOpacity>
+
+
+
+                                        {group.tasks.map((task, idx) => {
+                                            const taskDateTime = dayjs(`${group.date} ${task.time}`, 'YYYY-MM-DD HH:mm');
+                                            const isTimePast = taskDateTime.isBefore(dayjs());
+
+
+                                            return (
+
+                                                <Swipeable key={idx} renderRightActions={() => {
+                                                    // setTaskToDeleteDate(dayjs(group.date).format('YYYY-MM-DD'));
+                                                    return renderRightActions(idx, dayjs(group.date).format('YYYY-MM-DD')); // ต้อง return
+                                                }}
+                                                >
+                                                    <View style={{
+                                                        flexDirection: 'row',
+                                                        alignItems: 'center',
+                                                        marginBottom: 8,
+                                                        opacity: isTimePast ? 0.5 : 1,
+                                                        width: 330,
+                                                        // backgroundColor: 'pink'
+                                                    }}>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10 }}>
+                                                            <Image
+                                                                source={require('./Image/clock.png')}
+                                                                style={{ width: 15, height: 15 }}
+                                                            />
+                                                            <Text style={styles.timeText}>
+                                                                { } {(task.time || '00:00').replace(':', '.')}
+                                                            </Text>
+                                                        </View>
+
+                                                        <View style={{
+                                                            flex: 1,
+                                                            backgroundColor: '#fbfcfc',
+                                                            padding: 10,
+                                                            borderRadius: 15,
+                                                            shadowColor: '#000',
+                                                            shadowOpacity: 0.1,
+                                                            shadowRadius: 4,
+                                                            elevation: 2,
+                                                            alignItems: 'center',
+                                                            flexDirection: 'row',
+                                                            //  backgroundColor: 'red',
+                                                        }}>
+                                                            <Text style={{ fontSize: 14, }}>{task.name}</Text>
+                                                            {task.category && categoryImages[task.category] && (
+                                                                <Image
+                                                                    source={categoryImages[task.category]}
+                                                                    style={{ width: 35, height: 35, position: 'absolute', right: 5, }}
+                                                                />
+                                                            )}
+
+
+                                                        </View>
+                                                    </View>
+                                                </Swipeable>
+                                            );
+                                        })}
+                                    </View>
+                                );
+                            })
+                        )}
+                    </ScrollView >
+                </View>
+            </GestureHandlerRootView>
 
         </View>
     );
@@ -182,6 +329,7 @@ const styles = StyleSheet.create({
     dayContainer: {
         alignItems: 'center',
         marginVertical: 8,
+        //    backgroundColor: 'blue',
     },
     ImageContainer: {
         alignItems: 'center',
